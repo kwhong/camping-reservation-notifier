@@ -238,5 +238,15 @@ npm run build
 - 스크래핑 이력 페이지에서 에러 메시지 확인
 - 대상 웹사이트 HTML 구조 변경 여부 확인
 
+## 문서
+
+상세한 문서는 `docs/` 폴더를 참고하세요:
+
+- **[사용자 매뉴얼](docs/USER_MANUAL.md)** - 시스템 사용 방법
+- **[운영자 매뉴얼](docs/OPERATOR_MANUAL.md)** - 시스템 운영 및 관리
+- **[배포 가이드](docs/DEPLOYMENT_GUIDE.md)** - 서버 배포 방법
+- **[테스트 가이드](docs/TESTING_GUIDE.md)** - 시스템 테스트 방법
+- **[테스트 요약](docs/TESTING_SUMMARY.md)** - 테스트 이력
+
 ## 라이선스
 MIT
