@@ -71,10 +71,33 @@ const AvailableSites = () => {
       width: 180,
       render: (scrapedAt) => {
         if (!scrapedAt) return '-';
-        const date = scrapedAt.seconds
-          ? new Date(scrapedAt.seconds * 1000)
-          : new Date(scrapedAt);
-        return dayjs(date).format('YYYY-MM-DD HH:mm:ss');
+
+        try {
+          let date;
+
+          // Firestore Timestamp 객체 (seconds 속성 있음)
+          if (scrapedAt.seconds) {
+            date = new Date(scrapedAt.seconds * 1000);
+          }
+          // Firestore Timestamp 객체 (_seconds 속성 있음)
+          else if (scrapedAt._seconds) {
+            date = new Date(scrapedAt._seconds * 1000);
+          }
+          // ISO 문자열 또는 일반 Date 객체
+          else {
+            date = new Date(scrapedAt);
+          }
+
+          // 유효한 날짜인지 확인
+          if (isNaN(date.getTime())) {
+            return '-';
+          }
+
+          return dayjs(date).format('YYYY-MM-DD HH:mm:ss');
+        } catch (error) {
+          console.error('Date parsing error:', error, scrapedAt);
+          return '-';
+        }
       },
     },
   ];
