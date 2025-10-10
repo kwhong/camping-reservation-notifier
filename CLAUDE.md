@@ -31,6 +31,7 @@ npm install                    # Install dependencies
 npm run dev                    # Development server (Vite)
 npm run build                  # Production build
 npm run preview                # Preview production build
+npm run lint                   # Run ESLint
 ```
 
 Frontend runs on `http://localhost:5173`
@@ -40,7 +41,7 @@ Frontend runs on `http://localhost:5173`
 ### Scheduler Flow (Backend Entry Point)
 The system automatically starts when `backend/src/app.js` launches:
 1. `app.js` calls `startScheduler()` on server start
-2. Scheduler runs every minute with 5-20s random delay
+2. Scheduler runs **every 10 minutes** with **30-120s random delay**
 3. **Sleep time**: Skips execution 01:00-08:00 KST
 4. **Conditional execution**: Only runs if active user settings with future dates exist
 5. Executes: scraping → notification checking → Firestore storage
@@ -48,22 +49,24 @@ The system automatically starts when `backend/src/app.js` launches:
 Critical files: `scheduler.service.js`, `scraper.service.js`, `notification.service.js`
 
 ### Scraping Logic
-- Scrapes 3 months: Current month (M), M+1, M+2
-- Uses Playwright headless browser
+- **Dynamic month selection**: Scrapes months based on active user settings' date ranges, or defaults to 3 months (current M, M+1, M+2)
+- Uses Playwright headless browser (Chromium)
 - Parses HTML structure:
-  - Areas: `<dl>` tags (데크A/B/C/D, 원두막, 돔하우스)
-  - Dates: `<a>` tags within `<div class="element">`
-  - Availability count: `<dt>` tags
+  - Date divs: `<div id="YYYY-MM-DD">` (uses ID attribute with date pattern)
+  - Areas: `<dl class="schedule">` within date divs
+  - Area names: `<dd>` tags
+  - Availability count: `<dt>` tags (integer)
 - All scraped data stored in Firestore `availability` collection
 - Scraping logs stored with status (success/error/running)
 
 ### Notification System
 After each scrape, checks user settings against new availability:
 1. Fetches all active `userSettings` from Firestore
-2. Matches conditions: campingName, region, area[], dateRange
+2. Matches conditions: campingName, region, area[] (OR logic), dateRange
 3. Sends email via Gmail SMTP (nodemailer)
-4. **Duplicate prevention**: Won't notify same user for same camping-area-date within 24h
-5. Logs all notifications in `notifications` collection
+4. **One-time notification**: After sending, the setting is automatically deactivated (`isActive: false`)
+5. **Setting-level deduplication**: Checks if a setting has already triggered a notification (prevents duplicate notifications for same setting)
+6. Logs all notifications in `notifications` collection
 
 ### Authentication Flow
 - Frontend: Firebase Client SDK (email/password + Google OAuth)
@@ -84,7 +87,8 @@ All date utilities in `backend/src/utils/date.js`:
 - Uses Korea timezone (KST/UTC+9) for all operations
 - `getKoreaDate()`: Current time in KST
 - `isSleepTime()`: Checks if 01:00-08:00 KST
-- `getMonthsToScrape()`: Returns [YYYY-MM, YYYY-MM+1, YYYY-MM+2]
+- `getMonthsToScrape()`: Returns [YYYY-MM, YYYY-MM+1, YYYY-MM+2] (default)
+- `getMonthsFromSettings(activeSettings)`: Extracts unique months from user settings' date ranges
 - `getRandomDelay(min, max)`: Random milliseconds for scheduler
 
 ## Environment Variables
@@ -120,12 +124,13 @@ API client (`frontend/src/services/api.js`) automatically injects Firebase auth 
 
 **Scraping → Notification Flow:**
 ```
-scheduler.service.js (cron trigger)
+scheduler.service.js (cron trigger every 10 min)
   → scraper.service.js (Playwright scraping)
     → firestore.service.js (save availability)
   → notification.service.js (match user settings)
     → email.js (send via nodemailer)
     → firestore.service.js (log notification)
+    → firestore.service.js (deactivate setting)
 ```
 
 **Frontend Auth Flow:**
@@ -138,11 +143,12 @@ Login.jsx (Firebase signIn)
 
 ## Important Constraints
 
-1. **Scraper HTML parsing** is tightly coupled to mirihae.com DOM structure - if site changes, update `scraper.service.js` parsing logic
+1. **Scraper HTML parsing** is tightly coupled to mirihae.com DOM structure - if site changes, update `scraper.service.js` parsing logic (specifically: date div IDs, dl.schedule structure, dt/dd tags)
 2. **Email sending** requires Gmail account with App Password (not regular password)
 3. **Firebase service account** path is hardcoded in `backend/src/config/firebase.js` (relative path: `../../../camping-scraper-prod-firebase-설정.json`)
 4. **Scheduler runs immediately** on server start - no manual trigger needed
 5. **Firestore timestamps** may return as objects with `seconds` property - handle both Date and timestamp objects when rendering
+6. **Notification is one-time per setting** - after sending, the setting is deactivated automatically. Users must re-enable or create a new setting to receive notifications again
 
 ## Debugging
 
@@ -151,3 +157,16 @@ Login.jsx (Firebase signIn)
 - Check Firestore directly for `scrapingLogs` collection to see error messages
 - Frontend API errors: Browser console shows axios interceptor errors
 - Health check: `GET http://localhost:3000/health` (no auth required)
+
+## GitHub Actions
+
+CI/CD workflows are configured in `.github/workflows/`:
+- `ci.yml`: Automated build and test on push/PR (Backend + Frontend, Node 18.x & 20.x)
+- `deploy.yml.example`: Example deployment workflow (rename to deploy.yml and configure secrets)
+
+## Documentation
+
+- `USER_MANUAL.md`: End-user guide for using the system
+- `OPERATOR_MANUAL.md`: System operator/admin guide (deployment, operations, troubleshooting)
+- `DEPLOYMENT_GUIDE.md`: Quick deployment guide for new servers
+- `.github/workflows/README.md`: GitHub Actions workflow documentation
