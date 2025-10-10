@@ -1,0 +1,87 @@
+name: Deploy to Server
+
+# This is an example deployment workflow
+# To use this:
+# 1. Rename this file to deploy.yml
+# 2. Set up GitHub Secrets in your repository:
+#    - SERVER_HOST: Your server IP or domain
+#    - SERVER_USER: SSH username
+#    - SSH_PRIVATE_KEY: SSH private key for authentication
+# 3. Update the paths and commands to match your server setup
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            echo "🚀 Starting deployment..."
+
+            # Navigate to app directory
+            cd /path/to/camping-reservation-notifier
+
+            # Pull latest code
+            echo "📥 Pulling latest code..."
+            git pull origin main
+
+            # Backend deployment
+            echo "🔧 Deploying backend..."
+            cd backend
+            npm install --production
+            pm2 restart camping-backend || pm2 start src/app.js --name camping-backend
+
+            # Frontend deployment
+            echo "🎨 Building frontend..."
+            cd ../frontend
+            npm install
+            npm run build
+
+            # Copy built files to web server (adjust path as needed)
+            # sudo cp -r dist/* /var/www/html/camping/
+
+            echo "✅ Deployment completed successfully!"
+
+            # Show PM2 status
+            pm2 status
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+            exit 1
+          fi
+
+# Alternative: Deploy to cloud platforms
+#
+# For Render.com:
+# - Connect your GitHub repo in Render dashboard
+# - Render auto-deploys on push to main
+#
+# For Railway:
+# - Connect GitHub repo in Railway dashboard
+# - Auto-deploys on push
+#
+# For Vercel (Frontend only):
+# - Install Vercel GitHub app
+# - Auto-deploys frontend on push

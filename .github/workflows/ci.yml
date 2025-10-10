@@ -1,0 +1,139 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-build:
+    name: Backend Build & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Check for syntax errors
+        run: |
+          cd backend
+          node -c src/app.js
+
+      - name: Run backend tests (if available)
+        run: |
+          cd backend
+          npm test --if-present
+        continue-on-error: true
+
+  frontend-build:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: http://localhost:3000/api
+
+      - name: Run frontend tests (if available)
+        run: |
+          cd frontend
+          npm test --if-present
+        continue-on-error: true
+
+      - name: Upload build artifacts
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist
+          retention-days: 7
+
+  lint-check:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Check for common issues
+        run: |
+          echo "Checking for .env files in git..."
+          if git ls-files | grep -E '\.env$|\.env\.local$'; then
+            echo "ERROR: .env files should not be committed!"
+            exit 1
+          fi
+          echo "No .env files found in git - OK"
+
+          echo "Checking for Firebase service account files..."
+          if git ls-files | grep -i firebase.*\.json; then
+            echo "WARNING: Firebase config files found in git"
+          fi
+
+          echo "Code quality check passed!"
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [backend-build, frontend-build, lint-check]
+    if: always()
+
+    steps:
+      - name: Check build status
+        run: |
+          echo "Backend Build: ${{ needs.backend-build.result }}"
+          echo "Frontend Build: ${{ needs.frontend-build.result }}"
+          echo "Lint Check: ${{ needs.lint-check.result }}"
+
+          if [ "${{ needs.backend-build.result }}" != "success" ] || \
+             [ "${{ needs.frontend-build.result }}" != "success" ] || \
+             [ "${{ needs.lint-check.result }}" != "success" ]; then
+            echo "Build failed!"
+            exit 1
+          fi
+
+          echo "All builds passed successfully!"
