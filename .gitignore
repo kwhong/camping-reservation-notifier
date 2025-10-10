@@ -53,3 +53,8 @@ deactivate-*.js
 .claude/settings.local.json
 firebase*.txt
 *firebase*.txt
+
+# Cloudflare Tunnel
+cloudflared.exe
+cloudflared
+*.pem

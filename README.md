@@ -238,6 +238,23 @@ npm run build
 - 스크래핑 이력 페이지에서 에러 메시지 확인
 - 대상 웹사이트 HTML 구조 변경 여부 확인
 
+## 외부 접속 (Cloudflare Tunnel)
+
+로컬 서버를 외부에서 접속할 수 있도록 Cloudflare Tunnel을 지원합니다.
+
+### 빠른 시작
+```bash
+# Backend 터널
+./cloudflared.exe tunnel --url http://localhost:3000
+
+# Frontend 터널
+./cloudflared.exe tunnel --url http://localhost:5174
+```
+
+자세한 설정 방법은 **[외부 접속 가이드](docs/EXTERNAL_ACCESS_GUIDE.md)**를 참고하세요.
+
+---
+
 ## 문서
 
 상세한 문서는 `docs/` 폴더를 참고하세요:
@@ -247,6 +264,7 @@ npm run build
 - **[배포 가이드](docs/DEPLOYMENT_GUIDE.md)** - 서버 배포 방법
 - **[테스트 가이드](docs/TESTING_GUIDE.md)** - 시스템 테스트 방법
 - **[테스트 요약](docs/TESTING_SUMMARY.md)** - 테스트 이력
+- **[외부 접속 가이드](docs/EXTERNAL_ACCESS_GUIDE.md)** - Cloudflare Tunnel 외부 접속
 
 ## 라이선스
 MIT
