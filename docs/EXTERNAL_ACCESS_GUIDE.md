@@ -4,13 +4,15 @@
 
 ### Frontend (사용자 접속)
 ```
-https://investigators-graphics-edmonton-certification.trycloudflare.com
+https://origin-bags-halifax-semester.trycloudflare.com
 ```
 
 ### Backend API (내부 통신용)
 ```
 https://sewing-washington-many-unnecessary.trycloudflare.com/api
 ```
+
+**참고:** Quick Tunnel URL은 재시작할 때마다 변경됩니다.
 
 ---
 
@@ -38,7 +40,7 @@ https://sewing-washington-many-unnecessary.trycloudflare.com/api
 1. **Add domain** 버튼 클릭
 2. 다음 도메인 입력 (https:// 없이):
    ```
-   investigators-graphics-edmonton-certification.trycloudflare.com
+   origin-bags-halifax-semester.trycloudflare.com
    ```
 3. **Add** 버튼 클릭
 
@@ -48,7 +50,7 @@ Authorized domains 목록에 다음이 포함되어야 합니다:
 - ✅ `localhost`
 - ✅ `camping-scraper-prod.firebaseapp.com`
 - ✅ `camping-scraper-prod.web.app`
-- ✅ `investigators-graphics-edmonton-certification.trycloudflare.com` (새로 추가)
+- ✅ `origin-bags-halifax-semester.trycloudflare.com` (새로 추가)
 
 ---
 
@@ -63,8 +65,12 @@ cd C:\claude\scraping
 ### Frontend 터널
 ```bash
 cd C:\claude\scraping
-./cloudflared.exe tunnel --url http://localhost:5174
+./cloudflared.exe tunnel --url http://localhost:5176
 ```
+
+**포트 참고:**
+- Frontend는 기본적으로 5173에서 시작하지만, 이미 사용 중이면 자동으로 다음 포트(5174, 5175, 5176...)를 사용합니다
+- 터널 생성 시 Frontend가 실제 실행 중인 포트를 확인하세요
 
 **중요:**
 - 터널을 시작하면 **URL이 매번 변경**될 수 있습니다
@@ -79,7 +85,7 @@ cd C:\claude\scraping
 
 ### 1. Frontend 접속 테스트
 ```
-https://investigators-graphics-edmonton-certification.trycloudflare.com
+https://origin-bags-halifax-semester.trycloudflare.com
 ```
 
 **확인 사항:**
@@ -168,13 +174,33 @@ Network Error or CORS Error
 2. Frontend 재시작
 3. 새로운 Frontend URL을 Firebase Console에 추가
 
+### 5. "This host is not allowed" 오류
+```
+Blocked request. This host ("xxx.trycloudflare.com") is not allowed.
+```
+
+**해결방법:**
+1. `frontend/vite.config.js` 파일을 열기
+2. `server` 섹션에 다음 추가:
+   ```javascript
+   server: {
+     host: true,
+     allowedHosts: [
+       'localhost',
+       '.trycloudflare.com',
+     ],
+     // ... 기타 설정
+   }
+   ```
+3. Frontend 재시작
+
 ---
 
 ## 📱 모바일 접속
 
 스마트폰 브라우저에서 동일한 Frontend URL로 접속 가능합니다:
 ```
-https://investigators-graphics-edmonton-certification.trycloudflare.com
+https://origin-bags-halifax-semester.trycloudflare.com
 ```
 
 **참고:**
