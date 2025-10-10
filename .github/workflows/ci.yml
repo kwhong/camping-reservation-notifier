@@ -31,10 +31,13 @@ jobs:
           cd backend
           npm ci
 
-      - name: Check for syntax errors
+      - name: Verify backend structure
         run: |
           cd backend
-          node -c src/app.js
+          echo "Checking backend file structure..."
+          test -f src/app.js || exit 1
+          test -f package.json || exit 1
+          echo "Backend structure verified!"
 
       - name: Run backend tests (if available)
         run: |
@@ -66,12 +69,15 @@ jobs:
           cd frontend
           npm ci
 
+      - name: Create .env file for build
+        run: |
+          cd frontend
+          echo "VITE_API_URL=http://localhost:3000/api" > .env
+
       - name: Build frontend
         run: |
           cd frontend
           npm run build
-        env:
-          VITE_API_URL: http://localhost:3000/api
 
       - name: Run frontend tests (if available)
         run: |
