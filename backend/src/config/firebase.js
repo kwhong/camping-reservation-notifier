@@ -22,7 +22,7 @@ export const initializeFirebase = () => {
     db = admin.firestore();
     auth = admin.auth();
 
-    console.log('✅ Firebase initialized successfully');
+    console.log('✅ Firebase initialized successfully'); // Keep console.log for startup visibility
   } catch (error) {
     console.error('❌ Firebase initialization error:', error);
     throw error;

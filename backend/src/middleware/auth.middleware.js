@@ -1,4 +1,5 @@
 import { getAuth } from '../config/firebase.js';
+import { logger } from '../utils/logger.js';
 
 export const authenticateUser = async (req, res, next) => {
   try {
@@ -19,11 +20,11 @@ export const authenticateUser = async (req, res, next) => {
       };
       next();
     } catch (error) {
-      console.error('Token verification error:', error);
+      logger.warn('Token verification error', { error: error.message });
       return res.status(401).json({ error: 'Invalid token' });
     }
   } catch (error) {
-    console.error('Authentication error:', error);
+    logger.error('Authentication error', { error: error.message });
     return res.status(500).json({ error: 'Authentication failed' });
   }
 };
