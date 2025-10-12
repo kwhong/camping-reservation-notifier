@@ -281,7 +281,9 @@ npm run build
 - **[테스트 요약](docs/TESTING_SUMMARY.md)** - 테스트 실행 이력
 
 ### 개발자 문서
+- **[시스템 아키텍처](docs/SYSTEM_ARCHITECTURE.md)** ⭐ - **머메이드 다이어그램으로 보는 전체 시스템 구조**
 - **[OpenAPI 명세](openapi.yaml)** - REST API 문서 (Swagger/Postman)
+- **[JSDoc API 문서](backend/docs/API.md)** - 백엔드 함수/클래스 상세 문서
 - **[API 클라이언트 생성](docs/API_CLIENT_GENERATION.md)** - TypeScript 클라이언트 생성 방법
 - **[시스템 헬스 체크](docs/SYSTEM_HEALTH_CHECK.md)** - 전체 시스템 점검 리포트
 - **[서버 재시작 체크](docs/SERVER_RESTART_CHECK.md)** - 재기동 후 점검 결과
