@@ -51,7 +51,19 @@ router.post('/', authenticateUser, async (req, res, next) => {
 router.put('/:id', authenticateUser, async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { uid } = req.user;
     const { campingName, region, area, dateFrom, dateTo, isActive } = req.body;
+
+    // Check if setting exists and belongs to the user
+    const setting = await firestoreService.getUserSetting(id);
+
+    if (!setting) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+
+    if (setting.userId !== uid) {
+      return res.status(403).json({ error: 'Unauthorized: You can only update your own settings' });
+    }
 
     const updateData = {};
     if (campingName !== undefined) updateData.campingName = campingName;
@@ -76,6 +88,18 @@ router.put('/:id', authenticateUser, async (req, res, next) => {
 router.delete('/:id', authenticateUser, async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { uid } = req.user;
+
+    // Check if setting exists and belongs to the user
+    const setting = await firestoreService.getUserSetting(id);
+
+    if (!setting) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+
+    if (setting.userId !== uid) {
+      return res.status(403).json({ error: 'Unauthorized: You can only delete your own settings' });
+    }
 
     await firestoreService.deleteUserSetting(id);
 

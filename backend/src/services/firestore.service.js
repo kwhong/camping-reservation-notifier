@@ -51,6 +51,21 @@ export class FirestoreService {
     }
   }
 
+  async getUserSetting(settingId) {
+    try {
+      const doc = await this.getDb().collection(COLLECTIONS.USER_SETTINGS).doc(settingId).get();
+
+      if (!doc.exists) {
+        return null;
+      }
+
+      return { id: doc.id, ...doc.data() };
+    } catch (error) {
+      logger.error('Error getting user setting:', error);
+      throw error;
+    }
+  }
+
   async getAllActiveSettings() {
     try {
       const snapshot = await this.getDb().collection(COLLECTIONS.USER_SETTINGS)
