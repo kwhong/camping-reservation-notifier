@@ -1,10 +1,11 @@
 import { chromium } from 'playwright';
 import { logger } from '../utils/logger.js';
-import { getMonthsToScrape, getMonthsFromSettings, formatDate } from '../utils/date.js';
+import { getMonthsToScrape, getMonthsFromSettings } from '../utils/date.js';
 import { firestoreService } from './firestore.service.js';
 
 const BASE_URL = 'https://mirihae.com/camping/calendar.do';
-const BASE_PARAMS = 'checkType=&device=pc&tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&pageId=G24526799&groupCode=dytc&selectStartDate=&selectEndDate=&selectItemId=&selectTicketId=&cnt=&infoType=&approvalId=&txId=';
+const BASE_PARAMS =
+  'checkType=&device=pc&tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&pageId=G24526799&groupCode=dytc&selectStartDate=&selectEndDate=&selectItemId=&selectTicketId=&cnt=&infoType=&approvalId=&txId=';
 
 const CAMPING_INFO = {
   name: '다리안계곡캠핑장',
@@ -20,7 +21,6 @@ export class ScraperService {
 
     let browser;
     let totalItemsScraped = 0;
-    const SCRAPING_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
     try {
       logger.info('🔍 Starting camping site scraping...');
@@ -94,18 +94,18 @@ export class ScraperService {
       });
 
       return totalItemsScraped;
-
     } catch (error) {
       logger.error('❌ Scraping error:', error);
 
-      await firestoreService.updateScrapingLog(logId, {
-        status: 'error',
-        errorMessage: error.message,
-        itemsScraped: totalItemsScraped
-      }).catch(err => logger.error('Failed to update scraping log:', err));
+      await firestoreService
+        .updateScrapingLog(logId, {
+          status: 'error',
+          errorMessage: error.message,
+          itemsScraped: totalItemsScraped
+        })
+        .catch(err => logger.error('Failed to update scraping log:', err));
 
       throw error;
-
     } finally {
       // Ensure browser is always closed
       if (browser) {
@@ -126,7 +126,7 @@ export class ScraperService {
     }
   }
 
-  async parsePage(page, month) {
+  async parsePage(page, _month) {
     const availabilityData = [];
 
     try {
@@ -175,7 +175,6 @@ export class ScraperService {
       }
 
       return availabilityData;
-
     } catch (error) {
       logger.error('Error parsing page:', error);
       throw error;

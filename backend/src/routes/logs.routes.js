@@ -15,9 +15,7 @@ router.get('/notifications', authenticateUser, async (req, res, next) => {
 
     // Fetch user data for all users
     const db = firestoreService.getDb();
-    const userPromises = userIds.map(userId =>
-      db.collection('users').doc(userId).get()
-    );
+    const userPromises = userIds.map(userId => db.collection('users').doc(userId).get());
     const userDocs = await Promise.all(userPromises);
 
     // Create user map
@@ -31,8 +29,13 @@ router.get('/notifications', authenticateUser, async (req, res, next) => {
     // Convert Firestore timestamps to ISO strings and add user info
     const formattedNotifications = notifications.map(notification => ({
       ...notification,
-      sentAt: notification.sentAt?.toDate ? notification.sentAt.toDate().toISOString() : notification.sentAt,
-      userName: userMap[notification.userId]?.displayName || userMap[notification.userId]?.email || 'Unknown'
+      sentAt: notification.sentAt?.toDate
+        ? notification.sentAt.toDate().toISOString()
+        : notification.sentAt,
+      userName:
+        userMap[notification.userId]?.displayName ||
+        userMap[notification.userId]?.email ||
+        'Unknown'
     }));
 
     res.json({
@@ -54,7 +57,9 @@ router.get('/scraping', authenticateUser, async (req, res, next) => {
     const formattedLogs = scrapingLogs.map(log => ({
       ...log,
       startedAt: log.startedAt?.toDate ? log.startedAt.toDate().toISOString() : log.startedAt,
-      completedAt: log.completedAt?.toDate ? log.completedAt.toDate().toISOString() : log.completedAt
+      completedAt: log.completedAt?.toDate
+        ? log.completedAt.toDate().toISOString()
+        : log.completedAt
     }));
 
     res.json({

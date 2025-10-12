@@ -14,7 +14,7 @@ export class HealthService {
 
     const checks = {
       firestore: await this.checkFirestore(),
-      auth: await this.checkAuth(),
+      auth: this.checkAuth(),
       email: await this.checkEmail(),
       scheduler: this.checkScheduler()
     };
@@ -71,7 +71,7 @@ export class HealthService {
   /**
    * Check Firebase Auth
    */
-  async checkAuth() {
+  checkAuth() {
     try {
       const auth = getAuth();
 
@@ -123,21 +123,13 @@ export class HealthService {
    * Check Scheduler status
    */
   checkScheduler() {
-    try {
-      // Import scheduler status (this would need to be exported from scheduler.service.js)
-      // For now, we'll return a basic check
-      return {
-        status: 'healthy',
-        message: 'Scheduler running',
-        lastRun: 'N/A' // Would need to track this
-      };
-    } catch (error) {
-      logger.error('Scheduler health check failed', { error: error.message });
-      return {
-        status: 'unknown',
-        message: error.message
-      };
-    }
+    // Import scheduler status (this would need to be exported from scheduler.service.js)
+    // For now, we'll return a basic check
+    return {
+      status: 'healthy',
+      message: 'Scheduler running',
+      lastRun: 'N/A' // Would need to track this
+    };
   }
 
   /**
@@ -159,7 +151,8 @@ export class HealthService {
   async getLastScrapingStatus() {
     try {
       const db = getFirestore();
-      const snapshot = await db.collection('scrapingLogs')
+      const snapshot = await db
+        .collection('scrapingLogs')
         .orderBy('startedAt', 'desc')
         .limit(1)
         .get();

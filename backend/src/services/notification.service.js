@@ -19,7 +19,6 @@ export class NotificationService {
           await this.sendNotifications(setting, matches);
         }
       }
-
     } catch (error) {
       logger.error('Error in checkAndNotify:', error);
       throw error;
@@ -78,7 +77,9 @@ export class NotificationService {
       const hasNotified = await this.hasSettingNotified(setting.id);
 
       if (hasNotified) {
-        logger.info(`Setting ${setting.id} has already triggered notification, ensuring it's deactivated`);
+        logger.info(
+          `Setting ${setting.id} has already triggered notification, ensuring it's deactivated`
+        );
 
         // Ensure the setting is deactivated (in case deactivation failed before)
         await firestoreService.updateUserSetting(setting.id, { isActive: false });
@@ -113,7 +114,6 @@ export class NotificationService {
         await firestoreService.updateUserSetting(setting.id, { isActive: false });
         logger.info(`🔕 Setting ${setting.id} deactivated after sending notification`);
       }
-
     } catch (error) {
       logger.error('Error sending notifications:', error);
       throw error;
@@ -164,7 +164,6 @@ export class NotificationService {
 
       // Send email with retry logic
       await retryStrategies.email(() => sendEmail(userEmail, subject, html));
-
     } catch (error) {
       logger.error('Error sending email notification:', error);
       throw error;
@@ -174,7 +173,8 @@ export class NotificationService {
   async hasSettingNotified(settingId) {
     try {
       const db = firestoreService.getDb();
-      const snapshot = await db.collection('notifications')
+      const snapshot = await db
+        .collection('notifications')
         .where('settingId', '==', settingId)
         .limit(1)
         .get();

@@ -3,7 +3,6 @@ import {
   AppError,
   isOperationalError,
   formatErrorResponse,
-  AuthenticationError,
   TokenExpiredError,
   InvalidTokenError
 } from '../utils/errors.js';
@@ -11,7 +10,7 @@ import {
 /**
  * Global error handler middleware
  */
-export const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, _next) => {
   // Log error
   const logContext = {
     method: req.method,
@@ -66,9 +65,10 @@ export const errorHandler = (err, req, res, next) => {
   // Handle unknown errors
   const statusCode = err.statusCode || 500;
   const response = {
-    error: process.env.NODE_ENV === 'production'
-      ? 'Internal server error'
-      : err.message || 'Internal server error',
+    error:
+      process.env.NODE_ENV === 'production'
+        ? 'Internal server error'
+        : err.message || 'Internal server error',
     code: err.code || 'INTERNAL_ERROR',
     statusCode
   };
@@ -91,7 +91,7 @@ export const notFoundHandler = (req, res, next) => {
 /**
  * Async handler wrapper to catch errors in async route handlers
  */
-export const asyncHandler = (fn) => {
+export const asyncHandler = fn => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

@@ -58,11 +58,7 @@ export async function retryWithBackoff(fn, options = {}) {
  * @returns {Promise} - Result of function
  */
 export async function retryWithFixedDelay(fn, options = {}) {
-  const {
-    maxRetries = 3,
-    delay = 5000,
-    onRetry = null
-  } = options;
+  const { maxRetries = 3, delay = 5000, onRetry = null } = options;
 
   let lastError;
 
@@ -99,52 +95,56 @@ export const retryStrategies = {
   /**
    * Scraping operations: 3 retries with exponential backoff
    */
-  scraping: (fn) => retryWithBackoff(fn, {
-    maxRetries: 3,
-    initialDelay: 2000,
-    maxDelay: 30000,
-    factor: 2,
-    onRetry: (error, attempt, delay) => {
-      logger.info(`Scraping retry ${attempt}: waiting ${delay}ms`);
-    }
-  }),
+  scraping: fn =>
+    retryWithBackoff(fn, {
+      maxRetries: 3,
+      initialDelay: 2000,
+      maxDelay: 30000,
+      factor: 2,
+      onRetry: (error, attempt, delay) => {
+        logger.info(`Scraping retry ${attempt}: waiting ${delay}ms`);
+      }
+    }),
 
   /**
    * Email sending: 2 retries with fixed 5-second delay
    */
-  email: (fn) => retryWithFixedDelay(fn, {
-    maxRetries: 2,
-    delay: 5000,
-    onRetry: (error, attempt) => {
-      logger.info(`Email retry ${attempt}: network or SMTP issue`);
-    }
-  }),
+  email: fn =>
+    retryWithFixedDelay(fn, {
+      maxRetries: 2,
+      delay: 5000,
+      onRetry: (error, attempt) => {
+        logger.info(`Email retry ${attempt}: network or SMTP issue`);
+      }
+    }),
 
   /**
    * Firestore operations: 3 retries with exponential backoff
    */
-  firestore: (fn) => retryWithBackoff(fn, {
-    maxRetries: 3,
-    initialDelay: 1000,
-    maxDelay: 10000,
-    factor: 2,
-    onRetry: (error, attempt, delay) => {
-      logger.info(`Firestore retry ${attempt}: waiting ${delay}ms`);
-    }
-  }),
+  firestore: fn =>
+    retryWithBackoff(fn, {
+      maxRetries: 3,
+      initialDelay: 1000,
+      maxDelay: 10000,
+      factor: 2,
+      onRetry: (error, attempt, delay) => {
+        logger.info(`Firestore retry ${attempt}: waiting ${delay}ms`);
+      }
+    }),
 
   /**
    * Network requests: 3 retries with exponential backoff
    */
-  network: (fn) => retryWithBackoff(fn, {
-    maxRetries: 3,
-    initialDelay: 1000,
-    maxDelay: 15000,
-    factor: 2,
-    onRetry: (error, attempt, delay) => {
-      logger.info(`Network retry ${attempt}: waiting ${delay}ms`);
-    }
-  })
+  network: fn =>
+    retryWithBackoff(fn, {
+      maxRetries: 3,
+      initialDelay: 1000,
+      maxDelay: 15000,
+      factor: 2,
+      onRetry: (error, attempt, delay) => {
+        logger.info(`Network retry ${attempt}: waiting ${delay}ms`);
+      }
+    })
 };
 
 /**
@@ -163,10 +163,12 @@ function sleep(ms) {
  */
 export function isRetryableError(error) {
   // Network errors
-  if (error.code === 'ECONNRESET' ||
-      error.code === 'ETIMEDOUT' ||
-      error.code === 'ENOTFOUND' ||
-      error.code === 'ECONNREFUSED') {
+  if (
+    error.code === 'ECONNRESET' ||
+    error.code === 'ETIMEDOUT' ||
+    error.code === 'ENOTFOUND' ||
+    error.code === 'ECONNREFUSED'
+  ) {
     return true;
   }
 
@@ -181,9 +183,11 @@ export function isRetryableError(error) {
   }
 
   // Playwright errors
-  if (error.message?.includes('Target closed') ||
-      error.message?.includes('Navigation timeout') ||
-      error.message?.includes('net::ERR_')) {
+  if (
+    error.message?.includes('Target closed') ||
+    error.message?.includes('Navigation timeout') ||
+    error.message?.includes('net::ERR_')
+  ) {
     return true;
   }
 

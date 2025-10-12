@@ -36,54 +36,56 @@ export const config = {
 
   // Firebase Configuration
   firebase: {
-    serviceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT || '../../../camping-scraper-prod-firebase-설정.json',
+    serviceAccountPath:
+      process.env.FIREBASE_SERVICE_ACCOUNT || '../../../camping-scraper-prod-firebase-설정.json',
     projectId: process.env.FIREBASE_PROJECT_ID || 'camping-scraper-prod'
   },
 
   // Scraper Configuration
   scraper: {
     baseUrl: 'https://mirihae.com/camping/calendar.do',
-    baseParams: 'checkType=&device=pc&tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&pageId=G24526799&groupCode=dytc&selectStartDate=&selectEndDate=&selectItemId=&selectTicketId=&cnt=&infoType=&approvalId=&txId=',
+    baseParams:
+      'checkType=&device=pc&tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&pageId=G24526799&groupCode=dytc&selectStartDate=&selectEndDate=&selectItemId=&selectTicketId=&cnt=&infoType=&approvalId=&txId=',
     camping: {
       name: '다리안계곡캠핑장',
       region: '충북 단양'
     },
     timeout: {
-      launch: 30000,      // 30 seconds
-      page: 30000,        // 30 seconds
-      overall: 5 * 60 * 1000  // 5 minutes
+      launch: 30000, // 30 seconds
+      page: 30000, // 30 seconds
+      overall: 5 * 60 * 1000 // 5 minutes
     },
     retryAttempts: 3,
     retryDelay: {
-      initial: 2000,      // 2 seconds
-      max: 30000,         // 30 seconds
+      initial: 2000, // 2 seconds
+      max: 30000, // 30 seconds
       factor: 2
     }
   },
 
   // Scheduler Configuration
   scheduler: {
-    cronExpression: '*/10 * * * *',  // Every 10 minutes
+    cronExpression: '*/10 * * * *', // Every 10 minutes
     randomDelay: {
-      min: 30,   // seconds
-      max: 120   // seconds
+      min: 30, // seconds
+      max: 120 // seconds
     },
     sleepHours: {
-      start: 1,  // 01:00 KST
-      end: 8     // 08:00 KST
+      start: 1, // 01:00 KST
+      end: 8 // 08:00 KST
     }
   },
 
   // Logging Configuration
   logging: {
     level: process.env.LOG_LEVEL || 'info',
-    maxFileSize: 5242880,  // 5MB
+    maxFileSize: 5242880, // 5MB
     maxFiles: 5
   },
 
   // Database Configuration
   firestore: {
-    batchSize: 500,  // Firestore batch limit
+    batchSize: 500, // Firestore batch limit
     queryLimit: 500
   },
 
@@ -119,8 +121,8 @@ export const config = {
  */
 export function validateConfig() {
   const required = {
-    'EMAIL_USER': config.email.user,
-    'EMAIL_APP_PASSWORD': config.email.password
+    EMAIL_USER: config.email.user,
+    EMAIL_APP_PASSWORD: config.email.password
   };
 
   const missing = Object.entries(required)

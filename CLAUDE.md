@@ -18,8 +18,9 @@ Camping site reservation notification system that scrapes camping availability a
 ```bash
 cd backend
 npm install                    # Install dependencies
-npm run dev                    # Development mode with nodemon
+npm run dev                    # Development mode with nodemon (auto-restart on changes)
 npm start                      # Production mode
+npm test                       # No tests configured (exits with error)
 ```
 
 Backend runs on `http://localhost:3000`
@@ -28,13 +29,14 @@ Backend runs on `http://localhost:3000`
 ```bash
 cd frontend
 npm install                    # Install dependencies
-npm run dev                    # Development server (Vite)
-npm run build                  # Production build
+npm run dev                    # Development server (Vite) - runs on port 5173 with external access enabled
+npm run build                  # Production build (outputs to dist/)
 npm run preview                # Preview production build
 npm run lint                   # Run ESLint
+npm test                       # No tests configured (exits with error)
 ```
 
-Frontend runs on `http://localhost:5173`
+Frontend runs on `http://localhost:5173` (accessible externally via `host: true` in vite.config.js)
 
 ## Critical Architecture Concepts
 
@@ -105,10 +107,16 @@ Firebase service account: `camping-scraper-prod-firebase-설정.json` must exist
 
 ### Frontend (.env)
 ```
+# For local development
 VITE_API_URL=http://localhost:3000/api
+
+# For Cloudflare Tunnel external access
+VITE_API_URL=https://your-tunnel-url.trycloudflare.com/api
 ```
 
 Firebase config is hardcoded in `frontend/src/services/firebase.js` (apiKey, authDomain, etc.)
+
+**Important**: Vite dev server runs with `host: true` in `vite.config.js` to allow external access via Cloudflare Tunnel. Cloudflare domains (*.trycloudflare.com) are whitelisted in `allowedHosts`.
 
 ## API Structure
 
@@ -150,6 +158,14 @@ Login.jsx (Firebase signIn)
 5. **Firestore timestamps** may return as objects with `seconds` property - handle both Date and timestamp objects when rendering
 6. **Notification is one-time per setting** - after sending, the setting is deactivated automatically. Users must re-enable or create a new setting to receive notifications again
 
+## Testing
+
+**No tests configured**: Both backend and frontend `npm test` commands exit with error. CI workflow uses `--if-present` and `continue-on-error: true` to handle this gracefully.
+
+To add tests in the future:
+- Backend: Update `backend/package.json` test script (consider Jest or Mocha)
+- Frontend: Update `frontend/package.json` test script (consider Vitest or Jest)
+
 ## Debugging
 
 - Backend logs: Check console output with emoji prefixes (🚀, ⏰, 😴, ✅, ❌)
@@ -164,9 +180,32 @@ CI/CD workflows are configured in `.github/workflows/`:
 - `ci.yml`: Automated build and test on push/PR (Backend + Frontend, Node 18.x & 20.x)
 - `deploy.yml.example`: Example deployment workflow (rename to deploy.yml and configure secrets)
 
+## Cloudflare Tunnel (External Access)
+
+The system supports external access via Cloudflare Tunnel for development/testing:
+
+**Quick start:**
+```bash
+# Backend tunnel (exposes port 3000)
+./cloudflared.exe tunnel --url http://localhost:3000
+
+# Frontend tunnel (exposes port 5173)
+./cloudflared.exe tunnel --url http://localhost:5173
+```
+
+**Configuration:**
+- Frontend `.env`: Set `VITE_API_URL` to tunnel URL (e.g., `https://xyz.trycloudflare.com/api`)
+- Vite config already allows Cloudflare domains in `allowedHosts` (see `vite.config.js:10-13`)
+- Use separate tunnels for frontend and backend, or use backend tunnel with Vite proxy
+
+See `docs/EXTERNAL_ACCESS_GUIDE.md` for detailed setup.
+
 ## Documentation
 
-- `USER_MANUAL.md`: End-user guide for using the system
-- `OPERATOR_MANUAL.md`: System operator/admin guide (deployment, operations, troubleshooting)
-- `DEPLOYMENT_GUIDE.md`: Quick deployment guide for new servers
-- `.github/workflows/README.md`: GitHub Actions workflow documentation
+- `docs/USER_MANUAL.md`: End-user guide for using the system
+- `docs/OPERATOR_MANUAL.md`: System operator/admin guide (deployment, operations, troubleshooting)
+- `docs/DEPLOYMENT_GUIDE.md`: Quick deployment guide for new servers
+- `docs/EXTERNAL_ACCESS_GUIDE.md`: Cloudflare Tunnel external access setup
+- `docs/TESTING_GUIDE.md`: System testing procedures
+- `docs/TESTING_SUMMARY.md`: Test execution history
+- `.github/workflows/README.md`: GitHub Actions workflow documentation (if exists)

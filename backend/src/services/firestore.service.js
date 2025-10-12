@@ -24,12 +24,14 @@ export class FirestoreService {
   // User Settings
   async createUserSetting(userId, settingData) {
     try {
-      const docRef = await this.getDb().collection(COLLECTIONS.USER_SETTINGS).add({
-        userId,
-        ...settingData,
-        isActive: true,
-        createdAt: new Date()
-      });
+      const docRef = await this.getDb()
+        .collection(COLLECTIONS.USER_SETTINGS)
+        .add({
+          userId,
+          ...settingData,
+          isActive: true,
+          createdAt: new Date()
+        });
       logger.info(`User setting created: ${docRef.id}`);
       return { id: docRef.id, ...settingData };
     } catch (error) {
@@ -40,7 +42,8 @@ export class FirestoreService {
 
   async getUserSettings(userId) {
     try {
-      const snapshot = await this.getDb().collection(COLLECTIONS.USER_SETTINGS)
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.USER_SETTINGS)
         .where('userId', '==', userId)
         .get();
 
@@ -68,7 +71,8 @@ export class FirestoreService {
 
   async getAllActiveSettings() {
     try {
-      const snapshot = await this.getDb().collection(COLLECTIONS.USER_SETTINGS)
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.USER_SETTINGS)
         .where('isActive', '==', true)
         .get();
 
@@ -102,10 +106,12 @@ export class FirestoreService {
   // Availability
   async saveAvailability(availabilityData) {
     try {
-      await this.getDb().collection(COLLECTIONS.AVAILABILITY).add({
-        ...availabilityData,
-        scrapedAt: new Date()
-      });
+      await this.getDb()
+        .collection(COLLECTIONS.AVAILABILITY)
+        .add({
+          ...availabilityData,
+          scrapedAt: new Date()
+        });
     } catch (error) {
       logger.error('Error saving availability:', error);
       throw error;
@@ -207,9 +213,7 @@ export class FirestoreService {
         // Just use simple orderBy and filter in memory if needed
         query = query.orderBy('date', 'desc').limit(500);
       } else if (filters.region) {
-        query = query.where('region', '==', filters.region)
-          .orderBy('date', 'desc')
-          .limit(500);
+        query = query.where('region', '==', filters.region).orderBy('date', 'desc').limit(500);
       } else {
         // No filters, just get recent records
         query = query.orderBy('scrapedAt', 'desc').limit(100);
@@ -239,10 +243,12 @@ export class FirestoreService {
   // Notifications
   async saveNotification(notificationData) {
     try {
-      await this.getDb().collection(COLLECTIONS.NOTIFICATIONS).add({
-        ...notificationData,
-        sentAt: new Date()
-      });
+      await this.getDb()
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .add({
+          ...notificationData,
+          sentAt: new Date()
+        });
       logger.info(`Notification saved for user: ${notificationData.userId}`);
     } catch (error) {
       logger.error('Error saving notification:', error);
@@ -252,7 +258,8 @@ export class FirestoreService {
 
   async getNotifications(limit = 50) {
     try {
-      const snapshot = await this.getDb().collection(COLLECTIONS.NOTIFICATIONS)
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.NOTIFICATIONS)
         .orderBy('sentAt', 'desc')
         .limit(limit)
         .get();
@@ -267,10 +274,12 @@ export class FirestoreService {
   // Scraping Logs
   async createScrapingLog(logData) {
     try {
-      const docRef = await this.getDb().collection(COLLECTIONS.SCRAPING_LOGS).add({
-        ...logData,
-        startedAt: new Date()
-      });
+      const docRef = await this.getDb()
+        .collection(COLLECTIONS.SCRAPING_LOGS)
+        .add({
+          ...logData,
+          startedAt: new Date()
+        });
       return docRef.id;
     } catch (error) {
       logger.error('Error creating scraping log:', error);
@@ -280,10 +289,13 @@ export class FirestoreService {
 
   async updateScrapingLog(logId, updateData) {
     try {
-      await this.getDb().collection(COLLECTIONS.SCRAPING_LOGS).doc(logId).update({
-        ...updateData,
-        completedAt: new Date()
-      });
+      await this.getDb()
+        .collection(COLLECTIONS.SCRAPING_LOGS)
+        .doc(logId)
+        .update({
+          ...updateData,
+          completedAt: new Date()
+        });
     } catch (error) {
       logger.error('Error updating scraping log:', error);
       throw error;
@@ -292,7 +304,8 @@ export class FirestoreService {
 
   async getScrapingLogs(limit = 50) {
     try {
-      const snapshot = await this.getDb().collection(COLLECTIONS.SCRAPING_LOGS)
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.SCRAPING_LOGS)
         .orderBy('startedAt', 'desc')
         .limit(limit)
         .get();
@@ -310,10 +323,13 @@ export class FirestoreService {
       const userDoc = await this.getDb().collection(COLLECTIONS.USERS).doc(userId).get();
 
       if (!userDoc.exists) {
-        await this.getDb().collection(COLLECTIONS.USERS).doc(userId).set({
-          ...userData,
-          createdAt: new Date()
-        });
+        await this.getDb()
+          .collection(COLLECTIONS.USERS)
+          .doc(userId)
+          .set({
+            ...userData,
+            createdAt: new Date()
+          });
         logger.info(`New user created: ${userId}`);
       }
 

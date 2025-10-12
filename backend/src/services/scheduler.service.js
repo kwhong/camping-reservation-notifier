@@ -39,13 +39,14 @@ export const startScheduler = () => {
       // Execute scraping
       logger.info('🚀 Starting scheduled scraping...');
       await executeScraping();
-
     } catch (error) {
       logger.error('❌ Scheduler error:', error);
     }
   });
 
-  logger.info('✅ Scheduler started successfully (runs every 10 minutes with 30-120s random delay)');
+  logger.info(
+    '✅ Scheduler started successfully (runs every 10 minutes with 30-120s random delay)'
+  );
 };
 
 export const stopScheduler = () => {
@@ -85,7 +86,6 @@ async function checkForActiveSettings() {
     });
 
     return hasFutureDates;
-
   } catch (error) {
     logger.error('Error checking active settings:', error);
     return false;
@@ -111,7 +111,6 @@ async function executeScraping() {
     } else {
       logger.warn('⚠️ No items scraped');
     }
-
   } catch (error) {
     logger.error('Error executing scraping:', error);
     throw error;

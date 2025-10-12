@@ -25,7 +25,7 @@ export const isSleepTime = () => {
 /**
  * Format date to YYYY-MM-DD
  */
-export const formatDate = (date) => {
+export const formatDate = date => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -35,7 +35,7 @@ export const formatDate = (date) => {
 /**
  * Format date to YYYY-MM (for URL parameter)
  */
-export const formatYearMonth = (date) => {
+export const formatYearMonth = date => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
@@ -62,7 +62,7 @@ export const getMonthsToScrape = () => {
  * @param {Array} activeSettings - Array of active user settings
  * @returns {Array} - Array of unique YYYY-MM strings sorted
  */
-export const getMonthsFromSettings = (activeSettings) => {
+export const getMonthsFromSettings = activeSettings => {
   const monthsSet = new Set();
 
   for (const setting of activeSettings) {
