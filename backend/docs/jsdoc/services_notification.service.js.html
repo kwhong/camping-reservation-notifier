@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>services/notification.service.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AppError.html">AppError</a></li><li><a href="AuthenticationError.html">AuthenticationError</a></li><li><a href="DatabaseError.html">DatabaseError</a></li><li><a href="EmailError.html">EmailError</a></li><li><a href="HealthService.html">HealthService</a><ul class='methods'><li data-type='method'><a href="HealthService.html#checkAuth">checkAuth</a></li><li data-type='method'><a href="HealthService.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="HealthService.html#checkFirestore">checkFirestore</a></li><li data-type='method'><a href="HealthService.html#checkHealth">checkHealth</a></li><li data-type='method'><a href="HealthService.html#checkScheduler">checkScheduler</a></li><li data-type='method'><a href="HealthService.html#getLastScrapingStatus">getLastScrapingStatus</a></li><li data-type='method'><a href="HealthService.html#getMemoryUsage">getMemoryUsage</a></li><li data-type='method'><a href="HealthService.html#getMetrics">getMetrics</a></li></ul></li><li><a href="NotificationService.html">NotificationService</a><ul class='methods'><li data-type='method'><a href="NotificationService.html#checkAndNotify">checkAndNotify</a></li><li data-type='method'><a href="NotificationService.html#hasSettingNotified">hasSettingNotified</a></li><li data-type='method'><a href="NotificationService.html#matchesCriteria">matchesCriteria</a></li><li data-type='method'><a href="NotificationService.html#sendEmailNotification">sendEmailNotification</a></li><li data-type='method'><a href="NotificationService.html#sendNotifications">sendNotifications</a></li></ul></li><li><a href="RateLimitError.html">RateLimitError</a></li><li><a href="ScraperError.html">ScraperError</a></li><li><a href="ScraperService.html">ScraperService</a><ul class='methods'><li data-type='method'><a href="ScraperService.html#parsePage">parsePage</a></li><li data-type='method'><a href="ScraperService.html#scrapeCampingSite">scrapeCampingSite</a></li></ul></li><li><a href="ValidationError.html">ValidationError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#ERROR_CODES">ERROR_CODES</a></li><li><a href="global.html#asyncHandler">asyncHandler</a></li><li><a href="global.html#checkForActiveSettings">checkForActiveSettings</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#errorHandler">errorHandler</a></li><li><a href="global.html#executeScraping">executeScraping</a></li><li><a href="global.html#formatDate">formatDate</a></li><li><a href="global.html#formatErrorResponse">formatErrorResponse</a></li><li><a href="global.html#formatYearMonth">formatYearMonth</a></li><li><a href="global.html#getKoreaDate">getKoreaDate</a></li><li><a href="global.html#getKoreaHour">getKoreaHour</a></li><li><a href="global.html#getMonthsFromSettings">getMonthsFromSettings</a></li><li><a href="global.html#getMonthsToScrape">getMonthsToScrape</a></li><li><a href="global.html#getRandomDelay">getRandomDelay</a></li><li><a href="global.html#isOperationalError">isOperationalError</a></li><li><a href="global.html#isRetryableError">isRetryableError</a></li><li><a href="global.html#isSleepTime">isSleepTime</a></li><li><a href="global.html#logRequestMiddleware">logRequestMiddleware</a></li><li><a href="global.html#matchesSetting">matchesSetting</a></li><li><a href="global.html#notFoundHandler">notFoundHandler</a></li><li><a href="global.html#requestIdMiddleware">requestIdMiddleware</a></li><li><a href="global.html#retryIfRetryable">retryIfRetryable</a></li><li><a href="global.html#retryStrategies">retryStrategies</a></li><li><a href="global.html#retryWithBackoff">retryWithBackoff</a></li><li><a href="global.html#retryWithFixedDelay">retryWithFixedDelay</a></li><li><a href="global.html#runScrapingNow">runScrapingNow</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#startScheduler">startScheduler</a></li><li><a href="global.html#stopScheduler">stopScheduler</a></li><li><a href="global.html#validateConfig">validateConfig</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">services/notification.service.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { sendEmail } from '../config/email.js';
+import { logger } from '../utils/logger.js';
+import { firestoreService } from './firestore.service.js';
+import { retryStrategies } from '../utils/retry.js';
+
+/**
+ * 알림 서비스
+ * @class
+ * @description 캠핑장 예약 가능 시 사용자에게 이메일 알림을 발송하는 서비스
+ */
+export class NotificationService {
+  /**
+   * 새로운 예약 가능 현황을 확인하고 알림 발송
+   * @async
+   * @param {Array} newAvailability - 스크래핑된 예약 가능 현황 배열
+   * @returns {Promise&lt;void>}
+   * @description
+   * - 모든 활성 사용자 설정을 조회
+   * - 각 설정의 조건(캠핑장, 지역, 구역, 날짜)과 매칭
+   * - 조건 일치 시 이메일 알림 발송 및 설정 비활성화
+   */
+  async checkAndNotify(newAvailability) {
+    try {
+      logger.info('🔔 Checking for notification triggers...');
+
+      // Get all active user settings
+      const activeSettings = await firestoreService.getAllActiveSettings();
+
+      for (const setting of activeSettings) {
+        // Check if this availability matches user's criteria
+        const matches = this.matchesCriteria(newAvailability, setting);
+
+        if (matches.length > 0) {
+          await this.sendNotifications(setting, matches);
+        }
+      }
+    } catch (error) {
+      logger.error('Error in checkAndNotify:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 예약 가능 현황이 사용자 설정 조건과 일치하는지 확인
+   * @param {Array} availabilityList - 예약 가능 현황 목록
+   * @param {Object} setting - 사용자 설정 객체
+   * @returns {Array} 조건에 일치하는 예약 가능 항목 배열
+   * @description
+   * - 캠핑장명, 지역, 구역(OR 조건), 날짜 범위 확인
+   * - availableCount > 0인 항목만 반환
+   */
+  matchesCriteria(availabilityList, setting) {
+    const matches = [];
+
+    for (const item of availabilityList) {
+      // Check camping name
+      if (setting.campingName &amp;&amp; item.campingName !== setting.campingName) {
+        continue;
+      }
+
+      // Check region
+      if (setting.region &amp;&amp; item.region !== setting.region) {
+        continue;
+      }
+
+      // Check area (if user specified specific areas)
+      if (setting.area &amp;&amp; setting.area.length > 0) {
+        if (!setting.area.includes(item.area)) {
+          continue;
+        }
+      }
+
+      // Check date range
+      const itemDate = new Date(item.date);
+      const dateFrom = setting.dateFrom ? new Date(setting.dateFrom) : null;
+      const dateTo = setting.dateTo ? new Date(setting.dateTo) : null;
+
+      if (dateFrom &amp;&amp; itemDate &lt; dateFrom) {
+        continue;
+      }
+
+      if (dateTo &amp;&amp; itemDate > dateTo) {
+        continue;
+      }
+
+      // Check if there's availability
+      if (item.availableCount > 0) {
+        matches.push(item);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * 알림 발송 (중복 방지 포함)
+   * @async
+   * @param {Object} setting - 사용자 설정 객체
+   * @param {Array} matches - 조건에 일치하는 예약 가능 항목 배열
+   * @returns {Promise&lt;void>}
+   * @description
+   * - 이미 알림을 발송한 설정인지 확인 (중복 방지)
+   * - 첫 번째 매칭 항목에 대해 이메일 알림 발송
+   * - Firestore에 알림 기록 저장
+   * - 알림 발송 후 설정을 자동으로 비활성화 (1회성 알림)
+   */
+  async sendNotifications(setting, matches) {
+    try {
+      // Get user info
+      const userId = setting.userId;
+
+      // Check if this setting has already triggered a notification
+      const hasNotified = await this.hasSettingNotified(setting.id);
+
+      if (hasNotified) {
+        logger.info(
+          `Setting ${setting.id} has already triggered notification, ensuring it's deactivated`
+        );
+
+        // Ensure the setting is deactivated (in case deactivation failed before)
+        await firestoreService.updateUserSetting(setting.id, { isActive: false });
+        logger.info(`🔕 Setting ${setting.id} deactivated (already notified)`);
+        return;
+      }
+
+      // Send notification for the first match only (to avoid spam)
+      if (matches.length > 0) {
+        const match = matches[0]; // Send only for the first available match
+        const notificationKey = `${match.campingName}-${match.area}-${match.date}`;
+
+        // Send email notification
+        await this.sendEmailNotification(userId, setting, match);
+
+        // TODO: Send push notification if user has pushToken
+
+        // Save notification record
+        await firestoreService.saveNotification({
+          userId,
+          settingId: setting.id,
+          campingName: match.campingName,
+          area: match.area,
+          date: match.date,
+          availableCount: match.availableCount,
+          notificationType: 'email'
+        });
+
+        logger.info(`✅ Notification sent to user ${userId} for ${notificationKey}`);
+
+        // Deactivate the setting after sending notification
+        await firestoreService.updateUserSetting(setting.id, { isActive: false });
+        logger.info(`🔕 Setting ${setting.id} deactivated after sending notification`);
+      }
+    } catch (error) {
+      logger.error('Error sending notifications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 이메일 알림 발송
+   * @async
+   * @param {string} userId - 사용자 ID
+   * @param {Object} setting - 사용자 설정 객체
+   * @param {Object} match - 매칭된 예약 가능 정보
+   * @returns {Promise&lt;void>}
+   * @throws {Error} 이메일 발송 실패 시
+   * @description
+   * - Firestore에서 사용자 정보 조회 (notificationEmail 우선, 없으면 email 사용)
+   * - HTML 형식의 이메일 생성 (캠핑장 정보, 날짜, 예약 가능 수 포함)
+   * - Retry 전략을 적용하여 이메일 발송
+   */
+  async sendEmailNotification(userId, setting, match) {
+    try {
+      // Get user info from Firestore
+      const db = firestoreService.getDb();
+      const userDoc = await db.collection('users').doc(userId).get();
+
+      let userEmail = 'user@example.com';
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        // Use notificationEmail if available, otherwise use email
+        userEmail = userData.notificationEmail || userData.email;
+      }
+
+      if (!userEmail || userEmail === 'user@example.com') {
+        logger.warn(`No valid email found for user ${userId}`);
+        return;
+      }
+
+      const subject = `🏕️ 캠핑장 예약 가능! - ${match.campingName}`;
+
+      const html = `
+        &lt;div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          &lt;h2 style="color: #2ecc71;">🏕️ 캠핑장 예약이 가능합니다!&lt;/h2>
+
+          &lt;div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            &lt;h3 style="margin-top: 0;">예약 정보&lt;/h3>
+            &lt;p>&lt;strong>캠핑장:&lt;/strong> ${match.campingName}&lt;/p>
+            &lt;p>&lt;strong>지역:&lt;/strong> ${match.region}&lt;/p>
+            &lt;p>&lt;strong>구역:&lt;/strong> ${match.area}&lt;/p>
+            &lt;p>&lt;strong>날짜:&lt;/strong> ${match.date}&lt;/p>
+            &lt;p>&lt;strong>예약 가능 수:&lt;/strong> &lt;span style="color: #e74c3c; font-size: 18px; font-weight: bold;">${match.availableCount}&lt;/span>&lt;/p>
+          &lt;/div>
+
+          &lt;p style="color: #e74c3c; font-weight: bold;">⚠️ 빠르게 예약하세요! 자리가 곧 마감될 수 있습니다.&lt;/p>
+
+          &lt;div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #7f8c8d;">
+            &lt;p>이 알림은 회원님의 설정에 따라 자동으로 발송되었습니다.&lt;/p>
+            &lt;p>알림을 중지하려면 설정에서 해당 조건을 비활성화하세요.&lt;/p>
+          &lt;/div>
+        &lt;/div>
+      `;
+
+      // Send email with retry logic
+      await retryStrategies.email(() => sendEmail(userEmail, subject, html));
+    } catch (error) {
+      logger.error('Error sending email notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 설정에 대한 알림 발송 이력 확인
+   * @async
+   * @param {string} settingId - 사용자 설정 ID
+   * @returns {Promise&lt;boolean>} 알림 발송 이력이 있으면 true, 없으면 false
+   * @description 중복 알림 방지를 위해 notifications 컬렉션에서 settingId로 조회
+   */
+  async hasSettingNotified(settingId) {
+    try {
+      const db = firestoreService.getDb();
+      const snapshot = await db
+        .collection('notifications')
+        .where('settingId', '==', settingId)
+        .limit(1)
+        .get();
+
+      return !snapshot.empty;
+    } catch (error) {
+      logger.error('Error checking if setting has notified:', error);
+      return false;
+    }
+  }
+}
+
+export const notificationService = new NotificationService();
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

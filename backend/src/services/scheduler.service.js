@@ -7,6 +7,15 @@ import { firestoreService } from './firestore.service.js';
 
 let schedulerTask = null;
 
+/**
+ * 스케줄러 시작
+ * @function
+ * @description
+ * - 10분마다 실행되는 Cron 작업 등록
+ * - 실행 전 30-120초 랜덤 딜레이 추가 (서버 부하 분산)
+ * - 수면 시간(01:00-08:00 KST) 체크하여 스킵
+ * - 활성 설정이 있고 미래 날짜가 있을 때만 스크래핑 실행
+ */
 export const startScheduler = () => {
   if (schedulerTask) {
     logger.warn('Scheduler is already running');
@@ -49,6 +58,11 @@ export const startScheduler = () => {
   );
 };
 
+/**
+ * 스케줄러 중지
+ * @function
+ * @description 실행 중인 Cron 작업을 중지하고 null로 초기화
+ */
 export const stopScheduler = () => {
   if (schedulerTask) {
     schedulerTask.stop();
@@ -57,6 +71,16 @@ export const stopScheduler = () => {
   }
 };
 
+/**
+ * 활성 설정 존재 여부 확인
+ * @async
+ * @function
+ * @returns {Promise<boolean>} 미래 날짜를 포함한 활성 설정이 있으면 true
+ * @description
+ * - 모든 활성 사용자 설정 조회
+ * - 각 설정의 dateFrom 또는 dateTo가 오늘 이후인지 확인
+ * - 날짜가 지정되지 않은 설정도 활성으로 간주
+ */
 async function checkForActiveSettings() {
   try {
     const activeSettings = await firestoreService.getAllActiveSettings();
@@ -92,6 +116,18 @@ async function checkForActiveSettings() {
   }
 }
 
+/**
+ * 스크래핑 실행 및 알림 체크
+ * @async
+ * @function
+ * @returns {Promise<void>}
+ * @throws {Error} 스크래핑 또는 알림 발송 실패 시
+ * @description
+ * - 활성 설정 기반으로 스크래핑 실행
+ * - 스크래핑된 항목 수 로깅
+ * - 최신 예약 가능 현황 조회
+ * - 사용자 설정과 매칭하여 알림 발송
+ */
 async function executeScraping() {
   try {
     // Get all active settings to determine which months to scrape
@@ -117,7 +153,13 @@ async function executeScraping() {
   }
 }
 
-// For manual testing
+/**
+ * 수동 스크래핑 실행 (테스트용)
+ * @async
+ * @function
+ * @returns {Promise<void>}
+ * @description 스케줄러 대기 없이 즉시 스크래핑 실행 (개발/테스트 용도)
+ */
 export const runScrapingNow = async () => {
   logger.info('🔧 Manual scraping triggered');
   await executeScraping();

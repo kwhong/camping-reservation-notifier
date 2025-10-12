@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>utils/date.js - Documentation</title>
+    <title>services/scheduler.service.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,7 +35,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">utils/date.js</h1>
+    <h1 class="page-title">services/scheduler.service.js</h1>
     
 
     
@@ -45,116 +45,171 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>/**
- * Get current date in Korea timezone (KST: UTC+9)
- */
-export const getKoreaDate = () => {
-  const now = new Date();
-  const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  return koreaTime;
-};
+            <pre class="prettyprint source linenums"><code>import cron from 'node-cron';
+import { logger } from '../utils/logger.js';
+import { isSleepTime, getRandomDelay, getKoreaDate } from '../utils/date.js';
+import { scraperService } from './scraper.service.js';
+import { notificationService } from './notification.service.js';
+import { firestoreService } from './firestore.service.js';
+
+let schedulerTask = null;
 
 /**
- * Get current hour in Korea timezone (0-23)
+ * 스케줄러 시작
+ * @function
+ * @description
+ * - 10분마다 실행되는 Cron 작업 등록
+ * - 실행 전 30-120초 랜덤 딜레이 추가 (서버 부하 분산)
+ * - 수면 시간(01:00-08:00 KST) 체크하여 스킵
+ * - 활성 설정이 있고 미래 날짜가 있을 때만 스크래핑 실행
  */
-export const getKoreaHour = () => {
-  return getKoreaDate().getHours();
-};
-
-/**
- * Check if current time is in sleep period (01:00 - 08:00 KST)
- */
-export const isSleepTime = () => {
-  const hour = getKoreaHour();
-  return hour >= 1 &amp;&amp; hour &lt; 8;
-};
-
-/**
- * Format date to YYYY-MM-DD
- */
-export const formatDate = date => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-/**
- * Format date to YYYY-MM (for URL parameter)
- */
-export const formatYearMonth = date => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-};
-
-/**
- * Get array of months to scrape [current, next, next+1]
- */
-export const getMonthsToScrape = () => {
-  const now = getKoreaDate();
-  const months = [];
-
-  for (let i = 0; i &lt; 3; i++) {
-    const date = new Date(now);
-    date.setMonth(now.getMonth() + i);
-    months.push(formatYearMonth(date));
+export const startScheduler = () => {
+  if (schedulerTask) {
+    logger.warn('Scheduler is already running');
+    return;
   }
 
-  return months;
-};
+  // Run every 10 minutes
+  schedulerTask = cron.schedule('*/10 * * * *', async () => {
+    try {
+      // Add random delay (30-120 seconds)
+      const delay = getRandomDelay(30, 120);
+      logger.info(`⏰ Scheduler triggered. Waiting ${delay / 1000}s before execution...`);
 
-/**
- * Get unique months from active user settings
- * @param {Array} activeSettings - Array of active user settings
- * @returns {Array} - Array of unique YYYY-MM strings sorted
- */
-export const getMonthsFromSettings = activeSettings => {
-  const monthsSet = new Set();
+      await new Promise(resolve => setTimeout(resolve, delay));
 
-  for (const setting of activeSettings) {
-    const dateFrom = setting.dateFrom ? new Date(setting.dateFrom) : null;
-    const dateTo = setting.dateTo ? new Date(setting.dateTo) : null;
-
-    // If no dates specified, skip this setting
-    if (!dateFrom &amp;&amp; !dateTo) continue;
-
-    // If only dateFrom exists, add that month
-    if (dateFrom &amp;&amp; !dateTo) {
-      monthsSet.add(formatYearMonth(dateFrom));
-      continue;
-    }
-
-    // If only dateTo exists, add that month
-    if (!dateFrom &amp;&amp; dateTo) {
-      monthsSet.add(formatYearMonth(dateTo));
-      continue;
-    }
-
-    // If both exist, add all months in the range
-    if (dateFrom &amp;&amp; dateTo) {
-      const start = new Date(dateFrom);
-      const end = new Date(dateTo);
-
-      const current = new Date(start.getFullYear(), start.getMonth(), 1);
-      const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
-
-      while (current &lt;= endMonth) {
-        monthsSet.add(formatYearMonth(current));
-        current.setMonth(current.getMonth() + 1);
+      // Check if it's sleep time (01:00 - 08:00 KST)
+      if (isSleepTime()) {
+        logger.info('😴 Sleep time (01:00-08:00 KST). Skipping scraping.');
+        return;
       }
-    }
-  }
 
-  // Convert Set to Array and sort
-  return Array.from(monthsSet).sort();
+      // Check if there are any active user settings with future dates
+      const hasActiveSettings = await checkForActiveSettings();
+
+      if (!hasActiveSettings) {
+        logger.info('⏭️ No active user settings with future dates. Skipping scraping.');
+        return;
+      }
+
+      // Execute scraping
+      logger.info('🚀 Starting scheduled scraping...');
+      await executeScraping();
+    } catch (error) {
+      logger.error('❌ Scheduler error:', error);
+    }
+  });
+
+  logger.info(
+    '✅ Scheduler started successfully (runs every 10 minutes with 30-120s random delay)'
+  );
 };
 
 /**
- * Get random delay between min and max seconds
+ * 스케줄러 중지
+ * @function
+ * @description 실행 중인 Cron 작업을 중지하고 null로 초기화
  */
-export const getRandomDelay = (minSeconds = 5, maxSeconds = 20) => {
-  return Math.floor(Math.random() * (maxSeconds - minSeconds + 1) + minSeconds) * 1000;
+export const stopScheduler = () => {
+  if (schedulerTask) {
+    schedulerTask.stop();
+    schedulerTask = null;
+    logger.info('⏹️ Scheduler stopped');
+  }
+};
+
+/**
+ * 활성 설정 존재 여부 확인
+ * @async
+ * @function
+ * @returns {Promise&lt;boolean>} 미래 날짜를 포함한 활성 설정이 있으면 true
+ * @description
+ * - 모든 활성 사용자 설정 조회
+ * - 각 설정의 dateFrom 또는 dateTo가 오늘 이후인지 확인
+ * - 날짜가 지정되지 않은 설정도 활성으로 간주
+ */
+async function checkForActiveSettings() {
+  try {
+    const activeSettings = await firestoreService.getAllActiveSettings();
+
+    if (activeSettings.length === 0) {
+      return false;
+    }
+
+    // Check if any setting has a future date
+    const today = getKoreaDate();
+    today.setHours(0, 0, 0, 0);
+
+    const hasFutureDates = activeSettings.some(setting => {
+      const dateFrom = setting.dateFrom ? new Date(setting.dateFrom) : null;
+      const dateTo = setting.dateTo ? new Date(setting.dateTo) : null;
+
+      // If no dates specified, consider it as active
+      if (!dateFrom &amp;&amp; !dateTo) return true;
+
+      // If dateTo exists and is in the future
+      if (dateTo &amp;&amp; dateTo >= today) return true;
+
+      // If only dateFrom exists and is in the future
+      if (dateFrom &amp;&amp; !dateTo &amp;&amp; dateFrom >= today) return true;
+
+      return false;
+    });
+
+    return hasFutureDates;
+  } catch (error) {
+    logger.error('Error checking active settings:', error);
+    return false;
+  }
+}
+
+/**
+ * 스크래핑 실행 및 알림 체크
+ * @async
+ * @function
+ * @returns {Promise&lt;void>}
+ * @throws {Error} 스크래핑 또는 알림 발송 실패 시
+ * @description
+ * - 활성 설정 기반으로 스크래핑 실행
+ * - 스크래핑된 항목 수 로깅
+ * - 최신 예약 가능 현황 조회
+ * - 사용자 설정과 매칭하여 알림 발송
+ */
+async function executeScraping() {
+  try {
+    // Get all active settings to determine which months to scrape
+    const activeSettings = await firestoreService.getAllActiveSettings();
+
+    // Run the scraper with active settings
+    const itemsScraped = await scraperService.scrapeCampingSite(activeSettings);
+
+    if (itemsScraped > 0) {
+      logger.info(`✅ Scraping completed: ${itemsScraped} items scraped`);
+
+      // Get latest availability data to check for notifications
+      const latestAvailability = await firestoreService.getAvailability({ limit: 100 });
+
+      // Check if we need to send any notifications
+      await notificationService.checkAndNotify(latestAvailability);
+    } else {
+      logger.warn('⚠️ No items scraped');
+    }
+  } catch (error) {
+    logger.error('Error executing scraping:', error);
+    throw error;
+  }
+}
+
+/**
+ * 수동 스크래핑 실행 (테스트용)
+ * @async
+ * @function
+ * @returns {Promise&lt;void>}
+ * @description 스케줄러 대기 없이 즉시 스크래핑 실행 (개발/테스트 용도)
+ */
+export const runScrapingNow = async () => {
+  logger.info('🔧 Manual scraping triggered');
+  await executeScraping();
 };
 </code></pre>
         </article>

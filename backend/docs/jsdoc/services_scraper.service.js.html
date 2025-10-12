@@ -1,11 +1,58 @@
-import { chromium } from 'playwright';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>services/scraper.service.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AppError.html">AppError</a></li><li><a href="AuthenticationError.html">AuthenticationError</a></li><li><a href="DatabaseError.html">DatabaseError</a></li><li><a href="EmailError.html">EmailError</a></li><li><a href="HealthService.html">HealthService</a><ul class='methods'><li data-type='method'><a href="HealthService.html#checkAuth">checkAuth</a></li><li data-type='method'><a href="HealthService.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="HealthService.html#checkFirestore">checkFirestore</a></li><li data-type='method'><a href="HealthService.html#checkHealth">checkHealth</a></li><li data-type='method'><a href="HealthService.html#checkScheduler">checkScheduler</a></li><li data-type='method'><a href="HealthService.html#getLastScrapingStatus">getLastScrapingStatus</a></li><li data-type='method'><a href="HealthService.html#getMemoryUsage">getMemoryUsage</a></li><li data-type='method'><a href="HealthService.html#getMetrics">getMetrics</a></li></ul></li><li><a href="NotificationService.html">NotificationService</a><ul class='methods'><li data-type='method'><a href="NotificationService.html#checkAndNotify">checkAndNotify</a></li><li data-type='method'><a href="NotificationService.html#hasSettingNotified">hasSettingNotified</a></li><li data-type='method'><a href="NotificationService.html#matchesCriteria">matchesCriteria</a></li><li data-type='method'><a href="NotificationService.html#sendEmailNotification">sendEmailNotification</a></li><li data-type='method'><a href="NotificationService.html#sendNotifications">sendNotifications</a></li></ul></li><li><a href="RateLimitError.html">RateLimitError</a></li><li><a href="ScraperError.html">ScraperError</a></li><li><a href="ScraperService.html">ScraperService</a><ul class='methods'><li data-type='method'><a href="ScraperService.html#parsePage">parsePage</a></li><li data-type='method'><a href="ScraperService.html#scrapeCampingSite">scrapeCampingSite</a></li></ul></li><li><a href="ValidationError.html">ValidationError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#ERROR_CODES">ERROR_CODES</a></li><li><a href="global.html#asyncHandler">asyncHandler</a></li><li><a href="global.html#checkForActiveSettings">checkForActiveSettings</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#errorHandler">errorHandler</a></li><li><a href="global.html#executeScraping">executeScraping</a></li><li><a href="global.html#formatDate">formatDate</a></li><li><a href="global.html#formatErrorResponse">formatErrorResponse</a></li><li><a href="global.html#formatYearMonth">formatYearMonth</a></li><li><a href="global.html#getKoreaDate">getKoreaDate</a></li><li><a href="global.html#getKoreaHour">getKoreaHour</a></li><li><a href="global.html#getMonthsFromSettings">getMonthsFromSettings</a></li><li><a href="global.html#getMonthsToScrape">getMonthsToScrape</a></li><li><a href="global.html#getRandomDelay">getRandomDelay</a></li><li><a href="global.html#isOperationalError">isOperationalError</a></li><li><a href="global.html#isRetryableError">isRetryableError</a></li><li><a href="global.html#isSleepTime">isSleepTime</a></li><li><a href="global.html#logRequestMiddleware">logRequestMiddleware</a></li><li><a href="global.html#matchesSetting">matchesSetting</a></li><li><a href="global.html#notFoundHandler">notFoundHandler</a></li><li><a href="global.html#requestIdMiddleware">requestIdMiddleware</a></li><li><a href="global.html#retryIfRetryable">retryIfRetryable</a></li><li><a href="global.html#retryStrategies">retryStrategies</a></li><li><a href="global.html#retryWithBackoff">retryWithBackoff</a></li><li><a href="global.html#retryWithFixedDelay">retryWithFixedDelay</a></li><li><a href="global.html#runScrapingNow">runScrapingNow</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#startScheduler">startScheduler</a></li><li><a href="global.html#stopScheduler">stopScheduler</a></li><li><a href="global.html#validateConfig">validateConfig</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">services/scraper.service.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { chromium } from 'playwright';
 import { logger } from '../utils/logger.js';
 import { getMonthsToScrape, getMonthsFromSettings } from '../utils/date.js';
 import { firestoreService } from './firestore.service.js';
 
 const BASE_URL = 'https://mirihae.com/camping/calendar.do';
 const BASE_PARAMS =
-  'checkType=&device=pc&tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&pageId=G24526799&groupCode=dytc&selectStartDate=&selectEndDate=&selectItemId=&selectTicketId=&cnt=&infoType=&approvalId=&txId=';
+  'checkType=&amp;device=pc&amp;tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&amp;pageId=G24526799&amp;groupCode=dytc&amp;selectStartDate=&amp;selectEndDate=&amp;selectItemId=&amp;selectTicketId=&amp;cnt=&amp;infoType=&amp;approvalId=&amp;txId=';
 
 const CAMPING_INFO = {
   name: '다리안계곡캠핑장',
@@ -22,7 +69,7 @@ export class ScraperService {
    * 캠핑장 예약 가능 현황 스크래핑
    * @async
    * @param {Array} activeSettings - 활성화된 사용자 설정 목록 (스크래핑할 월 결정에 사용)
-   * @returns {Promise<number>} 스크래핑된 항목 수
+   * @returns {Promise&lt;number>} 스크래핑된 항목 수
    * @throws {Error} 브라우저 실행 또는 스크래핑 실패 시
    * @description
    * - Chromium 헤드리스 브라우저로 캠핑 사이트 접속
@@ -75,7 +122,7 @@ export class ScraperService {
 
       for (const month of months) {
         logger.info(`Scraping month: ${month}`);
-        const url = `${BASE_URL}?${BASE_PARAMS}&selectMonth=${month}`;
+        const url = `${BASE_URL}?${BASE_PARAMS}&amp;selectMonth=${month}`;
 
         await page.goto(url, { waitUntil: 'networkidle' });
         await page.waitForTimeout(2000); // Wait for dynamic content
@@ -148,9 +195,9 @@ export class ScraperService {
    * @async
    * @param {Page} page - Playwright 페이지 객체
    * @param {string} _month - 스크래핑 대상 월 (YYYY-MM, 로깅 용도)
-   * @returns {Promise<Array>} 예약 가능 데이터 배열
+   * @returns {Promise&lt;Array>} 예약 가능 데이터 배열
    * @description
-   * - HTML 구조: <div id="YYYY-MM-DD"> 내부의 <dl class="schedule"> 파싱
+   * - HTML 구조: &lt;div id="YYYY-MM-DD"> 내부의 &lt;dl class="schedule"> 파싱
    * - 각 dl 요소에서 구역명(dd)과 예약 가능 수(dt) 추출
    * - 날짜별, 구역별 예약 가능 현황을 배열로 반환
    */
@@ -158,7 +205,7 @@ export class ScraperService {
     const availabilityData = [];
 
     try {
-      // Get all date divs - structure: <div id="YYYY-MM-DD">
+      // Get all date divs - structure: &lt;div id="YYYY-MM-DD">
       const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
       // Get all divs and filter by date pattern in ID
@@ -173,19 +220,19 @@ export class ScraperService {
         const fullDate = dateId;
         logger.debug(`Processing date: ${fullDate}`);
 
-        // Within each date div, find all <dl class="schedule"> elements
-        // Structure: <div class="element"> > <div class="district"> > <dl class="schedule">
+        // Within each date div, find all &lt;dl class="schedule"> elements
+        // Structure: &lt;div class="element"> > &lt;div class="district"> > &lt;dl class="schedule">
         const dlElements = await dateDiv.$$('dl.schedule');
 
         for (const dl of dlElements) {
-          // Get availability count from <dt> tag
+          // Get availability count from &lt;dt> tag
           const dtElement = await dl.$('dt');
           if (!dtElement) continue;
 
           const countText = await dtElement.textContent();
           const availableCount = parseInt(countText?.trim() || '0');
 
-          // Get area name from <dd> tag
+          // Get area name from &lt;dd> tag
           const ddElement = await dl.$('dd');
           if (!ddElement) continue;
 
@@ -211,3 +258,28 @@ export class ScraperService {
 }
 
 export const scraperService = new ScraperService();
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>
