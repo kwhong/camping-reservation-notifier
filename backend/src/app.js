@@ -8,7 +8,9 @@ import authRoutes from './routes/auth.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import availabilityRoutes from './routes/availability.routes.js';
 import logsRoutes from './routes/logs.routes.js';
+import healthRoutes from './routes/health.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+import { requestIdMiddleware, logRequestMiddleware } from './middleware/request-id.middleware.js';
 import { logger } from './utils/logger.js';
 
 // Validate configuration
@@ -24,6 +26,8 @@ const { port: PORT, env: NODE_ENV } = config.server;
 
 // Middleware
 app.use(helmet());
+app.use(requestIdMiddleware);
+app.use(logRequestMiddleware);
 
 // CORS configuration
 const corsOptions = {
@@ -53,10 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 initializeFirebase();
 
 // Routes
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
+app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/availability', availabilityRoutes);
