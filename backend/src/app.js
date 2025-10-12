@@ -8,7 +8,7 @@ import authRoutes from './routes/auth.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import availabilityRoutes from './routes/availability.routes.js';
 import logsRoutes from './routes/logs.routes.js';
-import { errorHandler } from './middleware/error.middleware.js';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -62,7 +62,10 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/logs', logsRoutes);
 
-// Error handling middleware
+// 404 handler (must be after all routes)
+app.use(notFoundHandler);
+
+// Error handling middleware (must be last)
 app.use(errorHandler);
 
 // Start server

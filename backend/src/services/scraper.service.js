@@ -20,13 +20,22 @@ export class ScraperService {
 
     let browser;
     let totalItemsScraped = 0;
+    const SCRAPING_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
     try {
       logger.info('🔍 Starting camping site scraping...');
 
-      browser = await chromium.launch({ headless: true });
+      // Launch browser with timeout
+      browser = await chromium.launch({
+        headless: true,
+        timeout: 30000 // 30 second launch timeout
+      });
+
       const context = await browser.newContext();
       const page = await context.newPage();
+
+      // Set page timeout
+      page.setDefaultTimeout(30000); // 30 seconds for page operations
 
       // Get months from active settings, or fall back to default 3 months
       let months = [];
@@ -77,30 +86,43 @@ export class ScraperService {
         logger.info('✅ All data saved successfully');
       }
 
-      await browser.close();
+      logger.info(`✅ Scraping completed successfully. Total items: ${totalItemsScraped}`);
 
       await firestoreService.updateScrapingLog(logId, {
         status: 'success',
         itemsScraped: totalItemsScraped
       });
 
-      logger.info(`✅ Scraping completed successfully. Total items: ${totalItemsScraped}`);
       return totalItemsScraped;
 
     } catch (error) {
       logger.error('❌ Scraping error:', error);
 
-      if (browser) {
-        await browser.close();
-      }
-
       await firestoreService.updateScrapingLog(logId, {
         status: 'error',
         errorMessage: error.message,
         itemsScraped: totalItemsScraped
-      });
+      }).catch(err => logger.error('Failed to update scraping log:', err));
 
       throw error;
+
+    } finally {
+      // Ensure browser is always closed
+      if (browser) {
+        try {
+          await browser.close();
+          logger.debug('Browser closed successfully');
+        } catch (closeError) {
+          logger.error('Error closing browser:', closeError);
+          // Force kill browser process if close fails
+          try {
+            await browser.process()?.kill('SIGKILL');
+            logger.warn('Browser process force killed');
+          } catch (killError) {
+            logger.error('Failed to kill browser process:', killError);
+          }
+        }
+      }
     }
   }
 

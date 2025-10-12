@@ -1,6 +1,7 @@
 import { sendEmail } from '../config/email.js';
 import { logger } from '../utils/logger.js';
 import { firestoreService } from './firestore.service.js';
+import { retryStrategies } from '../utils/retry.js';
 
 export class NotificationService {
   async checkAndNotify(newAvailability) {
@@ -77,7 +78,11 @@ export class NotificationService {
       const hasNotified = await this.hasSettingNotified(setting.id);
 
       if (hasNotified) {
-        logger.info(`Setting ${setting.id} has already triggered notification, skipping`);
+        logger.info(`Setting ${setting.id} has already triggered notification, ensuring it's deactivated`);
+
+        // Ensure the setting is deactivated (in case deactivation failed before)
+        await firestoreService.updateUserSetting(setting.id, { isActive: false });
+        logger.info(`🔕 Setting ${setting.id} deactivated (already notified)`);
         return;
       }
 
@@ -157,7 +162,8 @@ export class NotificationService {
         </div>
       `;
 
-      await sendEmail(userEmail, subject, html);
+      // Send email with retry logic
+      await retryStrategies.email(() => sendEmail(userEmail, subject, html));
 
     } catch (error) {
       logger.error('Error sending email notification:', error);
