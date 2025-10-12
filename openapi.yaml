@@ -1,0 +1,943 @@
+openapi: 3.0.3
+info:
+  title: Camping Reservation Notifier API
+  description: |
+    캠핑장 예약 알림 시스템 REST API
+
+    이 API는 캠핑장 예약 가능 현황을 자동으로 스크래핑하고, 사용자가 설정한 조건에 맞는 예약이 가능해지면 이메일 알림을 보내는 서비스입니다.
+
+    ## 주요 기능
+    - Firebase Authentication 기반 사용자 인증
+    - 사용자별 알림 설정 관리 (CRUD)
+    - 예약 가능 현황 조회 (사용자 설정 기반 필터링)
+    - 알림 전송 기록 조회
+    - 스크래핑 실행 기록 조회
+    - 시스템 헬스 체크
+
+    ## 인증 방식
+    모든 API 엔드포인트(헬스 체크 제외)는 Firebase ID Token을 요구합니다.
+    `Authorization: Bearer <Firebase_ID_Token>` 헤더를 포함해야 합니다.
+
+    ## 기술 스택
+    - Backend: Node.js, Express
+    - Database: Firestore
+    - Scraping: Playwright
+    - Email: Nodemailer (Gmail SMTP)
+    - Logging: Winston
+
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://github.com/kwhong/camping-reservation-notifier
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://your-production-domain.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: 시스템 헬스 체크
+  - name: Authentication
+    description: 사용자 인증 및 프로필 관리
+  - name: Settings
+    description: 알림 설정 관리 (CRUD)
+  - name: Availability
+    description: 예약 가능 현황 조회
+  - name: Logs
+    description: 알림 및 스크래핑 로그 조회
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: 기본 헬스 체크
+      description: 시스템의 전반적인 상태를 확인합니다 (인증 불필요)
+      operationId: getHealth
+      responses:
+        '200':
+          description: 시스템 정상
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                timestamp: '2025-10-12T02:29:25.299Z'
+                uptime: 25.52
+                responseTime: 2468
+                checks:
+                  firestore:
+                    status: healthy
+                    message: Firestore connection OK
+                  auth:
+                    status: healthy
+                    message: Firebase Auth OK
+                  email:
+                    status: healthy
+                    message: Email service OK
+                  scheduler:
+                    status: healthy
+                    message: Scheduler running
+                    lastRun: N/A
+                system:
+                  memory:
+                    heapUsed: 46MB
+                    heapTotal: 58MB
+                    rss: 98MB
+                    external: 3MB
+                  cpu:
+                    user: 2484000
+                    system: 828000
+        '503':
+          description: 시스템 비정상
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health/detailed:
+    get:
+      tags:
+        - Health
+      summary: 상세 헬스 체크 (메트릭 포함)
+      description: 시스템 상태와 데이터베이스 메트릭을 함께 반환합니다
+      operationId: getDetailedHealth
+      responses:
+        '200':
+          description: 상세 헬스 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+              example:
+                status: healthy
+                timestamp: '2025-10-12T02:29:27.702Z'
+                uptime: 27.92
+                responseTime: 1168
+                checks:
+                  firestore:
+                    status: healthy
+                    message: Firestore connection OK
+                  auth:
+                    status: healthy
+                    message: Firebase Auth OK
+                  email:
+                    status: healthy
+                    message: Email service OK
+                  scheduler:
+                    status: healthy
+                    message: Scheduler running
+                system:
+                  memory:
+                    heapUsed: 43MB
+                    heapTotal: 59MB
+                    rss: 100MB
+                    external: 3MB
+                  cpu:
+                    user: 2578000
+                    system: 828000
+                metrics:
+                  database:
+                    users: 4
+                    userSettings: 6
+                    availability: 17450
+                    notifications: 5
+                  lastScraping:
+                    status: success
+                    startedAt: '2025-10-12T01:31:31.931Z'
+                    completedAt: '2025-10-12T01:31:58.282Z'
+                    itemsScraped: 229
+
+  /health/live:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      description: Kubernetes/Docker용 liveness probe 엔드포인트
+      operationId: getLiveness
+      responses:
+        '200':
+          description: 서버 살아있음
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: alive
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      description: Kubernetes/Docker용 readiness probe 엔드포인트
+      operationId: getReadiness
+      responses:
+        '200':
+          description: 서버 준비됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: 서버 준비 안됨
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: not_ready
+                  timestamp:
+                    type: string
+                    format: date-time
+                  checks:
+                    type: object
+
+  /api/auth/verify:
+    post:
+      tags:
+        - Authentication
+      summary: 토큰 검증 및 사용자 가져오기/생성
+      description: Firebase ID Token을 검증하고, 사용자가 없으면 생성합니다
+      operationId: verifyToken
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 토큰 검증 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/profile:
+    put:
+      tags:
+        - Authentication
+      summary: 사용자 프로필 업데이트
+      description: 사용자의 displayName, notificationEmail, pushToken을 업데이트합니다
+      operationId: updateProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  example: 홍길동
+                notificationEmail:
+                  type: string
+                  format: email
+                  example: notification@example.com
+                pushToken:
+                  type: string
+                  example: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+      responses:
+        '200':
+          description: 프로필 업데이트 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Profile updated successfully
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/settings:
+    get:
+      tags:
+        - Settings
+      summary: 사용자의 모든 알림 설정 조회
+      description: 로그인한 사용자의 모든 알림 설정을 조회합니다
+      operationId: getUserSettings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 설정 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserSetting'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Settings
+      summary: 새 알림 설정 생성
+      description: 새로운 알림 설정을 생성합니다
+      operationId: createUserSetting
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - dateFrom
+              properties:
+                campingName:
+                  type: string
+                  example: 다리안계곡캠핑장
+                  default: 다리안계곡캠핑장
+                region:
+                  type: string
+                  example: 충북 단양
+                  default: 충북 단양
+                area:
+                  type: array
+                  items:
+                    type: string
+                  example: ['A구역', 'B구역']
+                  default: []
+                  description: 빈 배열이면 모든 구역 감시
+                dateFrom:
+                  type: string
+                  format: date
+                  example: '2025-11-01'
+                  description: 감시 시작 날짜 (필수)
+                dateTo:
+                  type: string
+                  format: date
+                  example: '2025-11-30'
+                  description: 감시 종료 날짜 (미입력시 dateFrom과 동일)
+      responses:
+        '201':
+          description: 설정 생성 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UserSetting'
+        '400':
+          description: 잘못된 요청 (dateFrom 누락)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/settings/{id}:
+    put:
+      tags:
+        - Settings
+      summary: 알림 설정 업데이트
+      description: 기존 알림 설정을 업데이트합니다 (본인 소유만 가능)
+      operationId: updateUserSetting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 설정 ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                campingName:
+                  type: string
+                  example: 다리안계곡캠핑장
+                region:
+                  type: string
+                  example: 충북 단양
+                area:
+                  type: array
+                  items:
+                    type: string
+                  example: ['A구역']
+                dateFrom:
+                  type: string
+                  format: date
+                  example: '2025-11-01'
+                dateTo:
+                  type: string
+                  format: date
+                  example: '2025-11-30'
+                isActive:
+                  type: boolean
+                  example: true
+                  description: 알림 활성화 여부
+      responses:
+        '200':
+          description: 설정 업데이트 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Setting updated successfully
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 권한 없음 (다른 사용자의 설정)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: 'Unauthorized: You can only update your own settings'
+        '404':
+          description: 설정을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Settings
+      summary: 알림 설정 삭제
+      description: 알림 설정을 삭제합니다 (본인 소유만 가능)
+      operationId: deleteUserSetting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 설정 ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 설정 삭제 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Setting deleted successfully
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 권한 없음 (다른 사용자의 설정)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 설정을 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/availability:
+    get:
+      tags:
+        - Availability
+      summary: 예약 가능 현황 조회
+      description: 사용자의 활성 설정에 맞는 예약 가능 현황을 조회합니다 (availableCount > 0만 반환)
+      operationId: getAvailability
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 예약 가능 현황 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Availability'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/logs/notifications:
+    get:
+      tags:
+        - Logs
+      summary: 알림 전송 기록 조회
+      description: 알림 전송 기록을 최신순으로 조회합니다
+      operationId: getNotificationLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: 조회할 최대 개수
+          schema:
+            type: integer
+            default: 50
+            example: 50
+      responses:
+        '200':
+          description: 알림 기록 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationLog'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/logs/scraping:
+    get:
+      tags:
+        - Logs
+      summary: 스크래핑 실행 기록 조회
+      description: 스크래핑 실행 기록을 최신순으로 조회합니다
+      operationId: getScrapingLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: 조회할 최대 개수
+          schema:
+            type: integer
+            default: 50
+            example: 50
+      responses:
+        '200':
+          description: 스크래핑 기록 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScrapingLog'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase ID Token
+
+  schemas:
+    User:
+      type: object
+      properties:
+        uid:
+          type: string
+          example: firebase-user-id-123
+          description: Firebase User ID
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        displayName:
+          type: string
+          example: 홍길동
+        notificationEmail:
+          type: string
+          format: email
+          example: notification@example.com
+          description: 알림 수신용 이메일 (미설정시 기본 이메일 사용)
+        pushToken:
+          type: string
+          example: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+          description: 푸시 알림용 토큰
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserSetting:
+      type: object
+      properties:
+        id:
+          type: string
+          example: setting-id-123
+        userId:
+          type: string
+          example: firebase-user-id-123
+        campingName:
+          type: string
+          example: 다리안계곡캠핑장
+        region:
+          type: string
+          example: 충북 단양
+        area:
+          type: array
+          items:
+            type: string
+          example: ['A구역', 'B구역']
+          description: 감시할 구역 목록 (빈 배열이면 모든 구역)
+        dateFrom:
+          type: string
+          format: date
+          example: '2025-11-01'
+        dateTo:
+          type: string
+          format: date
+          example: '2025-11-30'
+        isActive:
+          type: boolean
+          example: true
+          description: 알림 활성화 여부 (알림 전송 후 자동으로 false로 변경됨)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Availability:
+      type: object
+      properties:
+        id:
+          type: string
+          example: availability-id-123
+        campingName:
+          type: string
+          example: 다리안계곡캠핑장
+        region:
+          type: string
+          example: 충북 단양
+        area:
+          type: string
+          example: A구역
+        date:
+          type: string
+          format: date
+          example: '2025-11-15'
+        availableCount:
+          type: integer
+          example: 3
+          description: 예약 가능한 자리 수
+        scrapedAt:
+          type: string
+          format: date-time
+          description: 스크래핑 수행 시각
+        updatedAt:
+          type: string
+          format: date-time
+          description: 마지막 업데이트 시각
+
+    NotificationLog:
+      type: object
+      properties:
+        id:
+          type: string
+          example: notification-log-id-123
+        userId:
+          type: string
+          example: firebase-user-id-123
+        userName:
+          type: string
+          example: 홍길동
+          description: 사용자 표시 이름 (또는 이메일)
+        settingId:
+          type: string
+          example: setting-id-123
+        campingName:
+          type: string
+          example: 다리안계곡캠핑장
+        region:
+          type: string
+          example: 충북 단양
+        area:
+          type: string
+          example: A구역
+        date:
+          type: string
+          format: date
+          example: '2025-11-15'
+        availableCount:
+          type: integer
+          example: 3
+        notificationType:
+          type: string
+          enum: [email, push]
+          example: email
+        sentAt:
+          type: string
+          format: date-time
+
+    ScrapingLog:
+      type: object
+      properties:
+        id:
+          type: string
+          example: scraping-log-id-123
+        status:
+          type: string
+          enum: [running, success, error]
+          example: success
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        itemsScraped:
+          type: integer
+          example: 229
+          description: 스크래핑한 항목 수
+        errorMessage:
+          type: string
+          example: null
+          nullable: true
+          description: 에러 발생 시 에러 메시지
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          example: 25.52
+          description: 서버 가동 시간 (초)
+        responseTime:
+          type: number
+          example: 2468
+          description: 응답 시간 (밀리초)
+        checks:
+          type: object
+          properties:
+            firestore:
+              $ref: '#/components/schemas/ComponentHealth'
+            auth:
+              $ref: '#/components/schemas/ComponentHealth'
+            email:
+              $ref: '#/components/schemas/ComponentHealth'
+            scheduler:
+              $ref: '#/components/schemas/SchedulerHealth'
+        system:
+          type: object
+          properties:
+            memory:
+              type: object
+              properties:
+                heapUsed:
+                  type: string
+                  example: 46MB
+                heapTotal:
+                  type: string
+                  example: 58MB
+                rss:
+                  type: string
+                  example: 98MB
+                external:
+                  type: string
+                  example: 3MB
+            cpu:
+              type: object
+              properties:
+                user:
+                  type: integer
+                  example: 2484000
+                system:
+                  type: integer
+                  example: 828000
+
+    DetailedHealthResponse:
+      allOf:
+        - $ref: '#/components/schemas/HealthResponse'
+        - type: object
+          properties:
+            metrics:
+              type: object
+              properties:
+                database:
+                  type: object
+                  properties:
+                    users:
+                      type: integer
+                      example: 4
+                    userSettings:
+                      type: integer
+                      example: 6
+                    availability:
+                      type: integer
+                      example: 17450
+                    notifications:
+                      type: integer
+                      example: 5
+                lastScraping:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      example: success
+                    startedAt:
+                      type: string
+                      format: date-time
+                    completedAt:
+                      type: string
+                      format: date-time
+                    itemsScraped:
+                      type: integer
+                      example: 229
+
+    ComponentHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: healthy
+        message:
+          type: string
+          example: Firestore connection OK
+
+    SchedulerHealth:
+      allOf:
+        - $ref: '#/components/schemas/ComponentHealth'
+        - type: object
+          properties:
+            lastRun:
+              type: string
+              example: N/A
+              description: 마지막 실행 시각 (현재는 N/A)
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Internal server error
+        code:
+          type: string
+          example: INTERNAL_ERROR
+        statusCode:
+          type: integer
+          example: 500
+        timestamp:
+          type: string
+          format: date-time
+        stack:
+          type: string
+          description: 개발 환경에서만 포함됨
+          nullable: true
+
+security:
+  - BearerAuth: []
