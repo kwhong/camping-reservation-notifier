@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>config/index.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AppError.html">AppError</a></li><li><a href="AuthenticationError.html">AuthenticationError</a></li><li><a href="DatabaseError.html">DatabaseError</a></li><li><a href="EmailError.html">EmailError</a></li><li><a href="HealthService.html">HealthService</a><ul class='methods'><li data-type='method'><a href="HealthService.html#checkAuth">checkAuth</a></li><li data-type='method'><a href="HealthService.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="HealthService.html#checkFirestore">checkFirestore</a></li><li data-type='method'><a href="HealthService.html#checkHealth">checkHealth</a></li><li data-type='method'><a href="HealthService.html#checkScheduler">checkScheduler</a></li><li data-type='method'><a href="HealthService.html#getLastScrapingStatus">getLastScrapingStatus</a></li><li data-type='method'><a href="HealthService.html#getMemoryUsage">getMemoryUsage</a></li><li data-type='method'><a href="HealthService.html#getMetrics">getMetrics</a></li></ul></li><li><a href="RateLimitError.html">RateLimitError</a></li><li><a href="ScraperError.html">ScraperError</a></li><li><a href="ValidationError.html">ValidationError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#ERROR_CODES">ERROR_CODES</a></li><li><a href="global.html#asyncHandler">asyncHandler</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#errorHandler">errorHandler</a></li><li><a href="global.html#formatDate">formatDate</a></li><li><a href="global.html#formatErrorResponse">formatErrorResponse</a></li><li><a href="global.html#formatYearMonth">formatYearMonth</a></li><li><a href="global.html#getKoreaDate">getKoreaDate</a></li><li><a href="global.html#getKoreaHour">getKoreaHour</a></li><li><a href="global.html#getMonthsFromSettings">getMonthsFromSettings</a></li><li><a href="global.html#getMonthsToScrape">getMonthsToScrape</a></li><li><a href="global.html#getRandomDelay">getRandomDelay</a></li><li><a href="global.html#isOperationalError">isOperationalError</a></li><li><a href="global.html#isRetryableError">isRetryableError</a></li><li><a href="global.html#isSleepTime">isSleepTime</a></li><li><a href="global.html#logRequestMiddleware">logRequestMiddleware</a></li><li><a href="global.html#notFoundHandler">notFoundHandler</a></li><li><a href="global.html#requestIdMiddleware">requestIdMiddleware</a></li><li><a href="global.html#retryIfRetryable">retryIfRetryable</a></li><li><a href="global.html#retryStrategies">retryStrategies</a></li><li><a href="global.html#retryWithBackoff">retryWithBackoff</a></li><li><a href="global.html#retryWithFixedDelay">retryWithFixedDelay</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#validateConfig">validateConfig</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">config/index.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import dotenv from 'dotenv';
+
+dotenv.config();
+
+/**
+ * Centralized Configuration
+ */
+export const config = {
+  // Server Configuration
+  server: {
+    port: parseInt(process.env.PORT || '3000', 10),
+    env: process.env.NODE_ENV || 'development',
+    isDevelopment: process.env.NODE_ENV !== 'production',
+    isProduction: process.env.NODE_ENV === 'production'
+  },
+
+  // CORS Configuration
+  cors: {
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+    allowedOrigins: [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ],
+    credentials: true
+  },
+
+  // Email Configuration
+  email: {
+    user: process.env.EMAIL_USER,
+    password: process.env.EMAIL_APP_PASSWORD,
+    from: `캠핑장 알림 &lt;${process.env.EMAIL_USER}>`,
+    retryAttempts: 2,
+    retryDelay: 5000 // ms
+  },
+
+  // Firebase Configuration
+  firebase: {
+    serviceAccountPath:
+      process.env.FIREBASE_SERVICE_ACCOUNT || '../../../camping-scraper-prod-firebase-설정.json',
+    projectId: process.env.FIREBASE_PROJECT_ID || 'camping-scraper-prod'
+  },
+
+  // Scraper Configuration
+  scraper: {
+    baseUrl: 'https://mirihae.com/camping/calendar.do',
+    baseParams:
+      'checkType=&amp;device=pc&amp;tocken=20251009233437-4cb6fa5d-17f6-471d-8830-3b10d580e648&amp;pageId=G24526799&amp;groupCode=dytc&amp;selectStartDate=&amp;selectEndDate=&amp;selectItemId=&amp;selectTicketId=&amp;cnt=&amp;infoType=&amp;approvalId=&amp;txId=',
+    camping: {
+      name: '다리안계곡캠핑장',
+      region: '충북 단양'
+    },
+    timeout: {
+      launch: 30000, // 30 seconds
+      page: 30000, // 30 seconds
+      overall: 5 * 60 * 1000 // 5 minutes
+    },
+    retryAttempts: 3,
+    retryDelay: {
+      initial: 2000, // 2 seconds
+      max: 30000, // 30 seconds
+      factor: 2
+    }
+  },
+
+  // Scheduler Configuration
+  scheduler: {
+    cronExpression: '*/10 * * * *', // Every 10 minutes
+    randomDelay: {
+      min: 30, // seconds
+      max: 120 // seconds
+    },
+    sleepHours: {
+      start: 1, // 01:00 KST
+      end: 8 // 08:00 KST
+    }
+  },
+
+  // Logging Configuration
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    maxFileSize: 5242880, // 5MB
+    maxFiles: 5
+  },
+
+  // Database Configuration
+  firestore: {
+    batchSize: 500, // Firestore batch limit
+    queryLimit: 500
+  },
+
+  // Retry Configuration
+  retry: {
+    scraping: {
+      maxRetries: 3,
+      initialDelay: 2000,
+      maxDelay: 30000,
+      factor: 2
+    },
+    email: {
+      maxRetries: 2,
+      delay: 5000
+    },
+    firestore: {
+      maxRetries: 3,
+      initialDelay: 1000,
+      maxDelay: 10000,
+      factor: 2
+    },
+    network: {
+      maxRetries: 3,
+      initialDelay: 1000,
+      maxDelay: 15000,
+      factor: 2
+    }
+  }
+};
+
+/**
+ * Validate required configuration
+ */
+export function validateConfig() {
+  const required = {
+    EMAIL_USER: config.email.user,
+    EMAIL_APP_PASSWORD: config.email.password
+  };
+
+  const missing = Object.entries(required)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+}
+
+// Export individual configs for convenience
+export const {
+  server,
+  cors: corsConfig,
+  email: emailConfig,
+  firebase: firebaseConfig,
+  scraper: scraperConfig,
+  scheduler: schedulerConfig,
+  logging: loggingConfig,
+  firestore: firestoreConfig,
+  retry: retryConfig
+} = config;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

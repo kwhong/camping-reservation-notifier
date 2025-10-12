@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>services/firestore.service.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AppError.html">AppError</a></li><li><a href="AuthenticationError.html">AuthenticationError</a></li><li><a href="DatabaseError.html">DatabaseError</a></li><li><a href="EmailError.html">EmailError</a></li><li><a href="HealthService.html">HealthService</a><ul class='methods'><li data-type='method'><a href="HealthService.html#checkAuth">checkAuth</a></li><li data-type='method'><a href="HealthService.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="HealthService.html#checkFirestore">checkFirestore</a></li><li data-type='method'><a href="HealthService.html#checkHealth">checkHealth</a></li><li data-type='method'><a href="HealthService.html#checkScheduler">checkScheduler</a></li><li data-type='method'><a href="HealthService.html#getLastScrapingStatus">getLastScrapingStatus</a></li><li data-type='method'><a href="HealthService.html#getMemoryUsage">getMemoryUsage</a></li><li data-type='method'><a href="HealthService.html#getMetrics">getMetrics</a></li></ul></li><li><a href="RateLimitError.html">RateLimitError</a></li><li><a href="ScraperError.html">ScraperError</a></li><li><a href="ValidationError.html">ValidationError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#ERROR_CODES">ERROR_CODES</a></li><li><a href="global.html#asyncHandler">asyncHandler</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#errorHandler">errorHandler</a></li><li><a href="global.html#formatDate">formatDate</a></li><li><a href="global.html#formatErrorResponse">formatErrorResponse</a></li><li><a href="global.html#formatYearMonth">formatYearMonth</a></li><li><a href="global.html#getKoreaDate">getKoreaDate</a></li><li><a href="global.html#getKoreaHour">getKoreaHour</a></li><li><a href="global.html#getMonthsFromSettings">getMonthsFromSettings</a></li><li><a href="global.html#getMonthsToScrape">getMonthsToScrape</a></li><li><a href="global.html#getRandomDelay">getRandomDelay</a></li><li><a href="global.html#isOperationalError">isOperationalError</a></li><li><a href="global.html#isRetryableError">isRetryableError</a></li><li><a href="global.html#isSleepTime">isSleepTime</a></li><li><a href="global.html#logRequestMiddleware">logRequestMiddleware</a></li><li><a href="global.html#notFoundHandler">notFoundHandler</a></li><li><a href="global.html#requestIdMiddleware">requestIdMiddleware</a></li><li><a href="global.html#retryIfRetryable">retryIfRetryable</a></li><li><a href="global.html#retryStrategies">retryStrategies</a></li><li><a href="global.html#retryWithBackoff">retryWithBackoff</a></li><li><a href="global.html#retryWithFixedDelay">retryWithFixedDelay</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#validateConfig">validateConfig</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">services/firestore.service.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { getFirestore } from '../config/firebase.js';
+import { logger } from '../utils/logger.js';
+
+const COLLECTIONS = {
+  USERS: 'users',
+  USER_SETTINGS: 'userSettings',
+  AVAILABILITY: 'availability',
+  NOTIFICATIONS: 'notifications',
+  SCRAPING_LOGS: 'scrapingLogs'
+};
+
+export class FirestoreService {
+  constructor() {
+    this.db = null;
+  }
+
+  getDb() {
+    if (!this.db) {
+      this.db = getFirestore();
+    }
+    return this.db;
+  }
+
+  // User Settings
+  async createUserSetting(userId, settingData) {
+    try {
+      const docRef = await this.getDb()
+        .collection(COLLECTIONS.USER_SETTINGS)
+        .add({
+          userId,
+          ...settingData,
+          isActive: true,
+          createdAt: new Date()
+        });
+      logger.info(`User setting created: ${docRef.id}`);
+      return { id: docRef.id, ...settingData };
+    } catch (error) {
+      logger.error('Error creating user setting:', error);
+      throw error;
+    }
+  }
+
+  async getUserSettings(userId) {
+    try {
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.USER_SETTINGS)
+        .where('userId', '==', userId)
+        .get();
+
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error getting user settings:', error);
+      throw error;
+    }
+  }
+
+  async getUserSetting(settingId) {
+    try {
+      const doc = await this.getDb().collection(COLLECTIONS.USER_SETTINGS).doc(settingId).get();
+
+      if (!doc.exists) {
+        return null;
+      }
+
+      return { id: doc.id, ...doc.data() };
+    } catch (error) {
+      logger.error('Error getting user setting:', error);
+      throw error;
+    }
+  }
+
+  async getAllActiveSettings() {
+    try {
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.USER_SETTINGS)
+        .where('isActive', '==', true)
+        .get();
+
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error getting active settings:', error);
+      throw error;
+    }
+  }
+
+  async updateUserSetting(settingId, updateData) {
+    try {
+      await this.getDb().collection(COLLECTIONS.USER_SETTINGS).doc(settingId).update(updateData);
+      logger.info(`User setting updated: ${settingId}`);
+    } catch (error) {
+      logger.error('Error updating user setting:', error);
+      throw error;
+    }
+  }
+
+  async deleteUserSetting(settingId) {
+    try {
+      await this.getDb().collection(COLLECTIONS.USER_SETTINGS).doc(settingId).delete();
+      logger.info(`User setting deleted: ${settingId}`);
+    } catch (error) {
+      logger.error('Error deleting user setting:', error);
+      throw error;
+    }
+  }
+
+  // Availability
+  async saveAvailability(availabilityData) {
+    try {
+      await this.getDb()
+        .collection(COLLECTIONS.AVAILABILITY)
+        .add({
+          ...availabilityData,
+          scrapedAt: new Date()
+        });
+    } catch (error) {
+      logger.error('Error saving availability:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save availability with upsert logic (prevents duplicates)
+   * Uses composite document ID: campingName_region_area_date
+   */
+  async saveAvailabilityV2(availabilityData) {
+    try {
+      const { campingName, region, area, date } = availabilityData;
+
+      // Generate deterministic document ID
+      const docId = `${campingName}_${region}_${area}_${date}`
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9가-힣_-]/g, '');
+
+      // Upsert with merge
+      await this.getDb()
+        .collection(COLLECTIONS.AVAILABILITY)
+        .doc(docId)
+        .set(
+          {
+            ...availabilityData,
+            scrapedAt: new Date(),
+            updatedAt: new Date()
+          },
+          { merge: true }
+        );
+
+      logger.debug(`Availability upserted: ${docId}`);
+    } catch (error) {
+      logger.error('Error saving availability (v2):', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch save availability data (more efficient for multiple documents)
+   */
+  async batchSaveAvailability(availabilityDataArray) {
+    try {
+      const batch = this.getDb().batch();
+      let count = 0;
+
+      for (const availabilityData of availabilityDataArray) {
+        const { campingName, region, area, date } = availabilityData;
+
+        const docId = `${campingName}_${region}_${area}_${date}`
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9가-힣_-]/g, '');
+
+        const docRef = this.getDb().collection(COLLECTIONS.AVAILABILITY).doc(docId);
+
+        batch.set(
+          docRef,
+          {
+            ...availabilityData,
+            scrapedAt: new Date(),
+            updatedAt: new Date()
+          },
+          { merge: true }
+        );
+
+        count++;
+
+        // Firestore batch limit is 500 operations
+        if (count >= 500) {
+          await batch.commit();
+          logger.info(`Batch committed: ${count} documents`);
+          count = 0;
+        }
+      }
+
+      // Commit remaining documents
+      if (count > 0) {
+        await batch.commit();
+        logger.info(`Final batch committed: ${count} documents`);
+      }
+
+      logger.info(`Total availability data saved: ${availabilityDataArray.length}`);
+    } catch (error) {
+      logger.error('Error batch saving availability:', error);
+      throw error;
+    }
+  }
+
+  async getAvailability(filters = {}) {
+    try {
+      let query = this.getDb().collection(COLLECTIONS.AVAILABILITY);
+
+      // If we have campingName, use it as the primary filter
+      if (filters.campingName) {
+        query = query.where('campingName', '==', filters.campingName);
+
+        // For now, avoid complex composite queries that need indexes
+        // Just use simple orderBy and filter in memory if needed
+        query = query.orderBy('date', 'desc').limit(500);
+      } else if (filters.region) {
+        query = query.where('region', '==', filters.region).orderBy('date', 'desc').limit(500);
+      } else {
+        // No filters, just get recent records
+        query = query.orderBy('scrapedAt', 'desc').limit(100);
+      }
+
+      const snapshot = await query.get();
+      let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Apply additional filters in memory to avoid needing composite indexes
+      if (filters.dateFrom) {
+        results = results.filter(item => item.date >= filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        results = results.filter(item => item.date &lt;= filters.dateTo);
+      }
+      if (filters.region &amp;&amp; filters.campingName) {
+        results = results.filter(item => item.region === filters.region);
+      }
+
+      return results;
+    } catch (error) {
+      logger.error('Error getting availability:', error);
+      throw error;
+    }
+  }
+
+  // Notifications
+  async saveNotification(notificationData) {
+    try {
+      await this.getDb()
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .add({
+          ...notificationData,
+          sentAt: new Date()
+        });
+      logger.info(`Notification saved for user: ${notificationData.userId}`);
+    } catch (error) {
+      logger.error('Error saving notification:', error);
+      throw error;
+    }
+  }
+
+  async getNotifications(limit = 50) {
+    try {
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .orderBy('sentAt', 'desc')
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error getting notifications:', error);
+      throw error;
+    }
+  }
+
+  // Scraping Logs
+  async createScrapingLog(logData) {
+    try {
+      const docRef = await this.getDb()
+        .collection(COLLECTIONS.SCRAPING_LOGS)
+        .add({
+          ...logData,
+          startedAt: new Date()
+        });
+      return docRef.id;
+    } catch (error) {
+      logger.error('Error creating scraping log:', error);
+      throw error;
+    }
+  }
+
+  async updateScrapingLog(logId, updateData) {
+    try {
+      await this.getDb()
+        .collection(COLLECTIONS.SCRAPING_LOGS)
+        .doc(logId)
+        .update({
+          ...updateData,
+          completedAt: new Date()
+        });
+    } catch (error) {
+      logger.error('Error updating scraping log:', error);
+      throw error;
+    }
+  }
+
+  async getScrapingLogs(limit = 50) {
+    try {
+      const snapshot = await this.getDb()
+        .collection(COLLECTIONS.SCRAPING_LOGS)
+        .orderBy('startedAt', 'desc')
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error getting scraping logs:', error);
+      throw error;
+    }
+  }
+
+  // User
+  async getOrCreateUser(userId, userData) {
+    try {
+      const userDoc = await this.getDb().collection(COLLECTIONS.USERS).doc(userId).get();
+
+      if (!userDoc.exists) {
+        await this.getDb()
+          .collection(COLLECTIONS.USERS)
+          .doc(userId)
+          .set({
+            ...userData,
+            createdAt: new Date()
+          });
+        logger.info(`New user created: ${userId}`);
+      }
+
+      return userDoc.exists ? userDoc.data() : userData;
+    } catch (error) {
+      logger.error('Error getting or creating user:', error);
+      throw error;
+    }
+  }
+
+  async updateUser(userId, updateData) {
+    try {
+      await this.getDb().collection(COLLECTIONS.USERS).doc(userId).update(updateData);
+      logger.info(`User updated: ${userId}`);
+    } catch (error) {
+      logger.error('Error updating user:', error);
+      throw error;
+    }
+  }
+}
+
+export const firestoreService = new FirestoreService();
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

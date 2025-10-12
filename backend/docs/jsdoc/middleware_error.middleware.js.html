@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>middleware/error.middleware.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AppError.html">AppError</a></li><li><a href="AuthenticationError.html">AuthenticationError</a></li><li><a href="DatabaseError.html">DatabaseError</a></li><li><a href="EmailError.html">EmailError</a></li><li><a href="HealthService.html">HealthService</a><ul class='methods'><li data-type='method'><a href="HealthService.html#checkAuth">checkAuth</a></li><li data-type='method'><a href="HealthService.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="HealthService.html#checkFirestore">checkFirestore</a></li><li data-type='method'><a href="HealthService.html#checkHealth">checkHealth</a></li><li data-type='method'><a href="HealthService.html#checkScheduler">checkScheduler</a></li><li data-type='method'><a href="HealthService.html#getLastScrapingStatus">getLastScrapingStatus</a></li><li data-type='method'><a href="HealthService.html#getMemoryUsage">getMemoryUsage</a></li><li data-type='method'><a href="HealthService.html#getMetrics">getMetrics</a></li></ul></li><li><a href="RateLimitError.html">RateLimitError</a></li><li><a href="ScraperError.html">ScraperError</a></li><li><a href="ValidationError.html">ValidationError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#ERROR_CODES">ERROR_CODES</a></li><li><a href="global.html#asyncHandler">asyncHandler</a></li><li><a href="global.html#config">config</a></li><li><a href="global.html#errorHandler">errorHandler</a></li><li><a href="global.html#formatDate">formatDate</a></li><li><a href="global.html#formatErrorResponse">formatErrorResponse</a></li><li><a href="global.html#formatYearMonth">formatYearMonth</a></li><li><a href="global.html#getKoreaDate">getKoreaDate</a></li><li><a href="global.html#getKoreaHour">getKoreaHour</a></li><li><a href="global.html#getMonthsFromSettings">getMonthsFromSettings</a></li><li><a href="global.html#getMonthsToScrape">getMonthsToScrape</a></li><li><a href="global.html#getRandomDelay">getRandomDelay</a></li><li><a href="global.html#isOperationalError">isOperationalError</a></li><li><a href="global.html#isRetryableError">isRetryableError</a></li><li><a href="global.html#isSleepTime">isSleepTime</a></li><li><a href="global.html#logRequestMiddleware">logRequestMiddleware</a></li><li><a href="global.html#notFoundHandler">notFoundHandler</a></li><li><a href="global.html#requestIdMiddleware">requestIdMiddleware</a></li><li><a href="global.html#retryIfRetryable">retryIfRetryable</a></li><li><a href="global.html#retryStrategies">retryStrategies</a></li><li><a href="global.html#retryWithBackoff">retryWithBackoff</a></li><li><a href="global.html#retryWithFixedDelay">retryWithFixedDelay</a></li><li><a href="global.html#sleep">sleep</a></li><li><a href="global.html#validateConfig">validateConfig</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">middleware/error.middleware.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { logger } from '../utils/logger.js';
+import {
+  AppError,
+  isOperationalError,
+  formatErrorResponse,
+  TokenExpiredError,
+  InvalidTokenError
+} from '../utils/errors.js';
+
+/**
+ * Global error handler middleware
+ */
+export const errorHandler = (err, req, res, _next) => {
+  // Log error
+  const logContext = {
+    method: req.method,
+    url: req.url,
+    ip: req.ip,
+    userId: req.user?.uid
+  };
+
+  if (isOperationalError(err)) {
+    logger.warn('Operational error occurred', { error: err.message, ...logContext });
+  } else {
+    logger.error('Unexpected error occurred', { error: err, ...logContext });
+  }
+
+  // Handle specific Firebase Auth errors
+  if (err.code === 'auth/id-token-expired') {
+    const tokenError = new TokenExpiredError();
+    return res.status(tokenError.statusCode).json(formatErrorResponse(tokenError));
+  }
+
+  if (err.code === 'auth/argument-error' || err.code === 'auth/invalid-id-token') {
+    const tokenError = new InvalidTokenError();
+    return res.status(tokenError.statusCode).json(formatErrorResponse(tokenError));
+  }
+
+  // Handle Firestore errors
+  if (err.code?.startsWith('FIRESTORE_') || err.code?.includes('firestore')) {
+    const response = {
+      error: 'Database operation failed',
+      code: 'DB_ERROR',
+      statusCode: 503
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      response.details = err.message;
+    }
+
+    return res.status(503).json(response);
+  }
+
+  // Handle our custom errors
+  if (err instanceof AppError) {
+    const response = formatErrorResponse(err);
+
+    if (process.env.NODE_ENV === 'development') {
+      response.stack = err.stack;
+    }
+
+    return res.status(err.statusCode).json(response);
+  }
+
+  // Handle unknown errors
+  const statusCode = err.statusCode || 500;
+  const response = {
+    error:
+      process.env.NODE_ENV === 'production'
+        ? 'Internal server error'
+        : err.message || 'Internal server error',
+    code: err.code || 'INTERNAL_ERROR',
+    statusCode
+  };
+
+  if (process.env.NODE_ENV === 'development') {
+    response.stack = err.stack;
+  }
+
+  res.status(statusCode).json(response);
+};
+
+/**
+ * Handle 404 errors
+ */
+export const notFoundHandler = (req, res, next) => {
+  const error = new AppError(`Route not found: ${req.originalUrl}`, 404, 'ROUTE_NOT_FOUND');
+  next(error);
+};
+
+/**
+ * Async handler wrapper to catch errors in async route handlers
+ */
+export const asyncHandler = fn => {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>
