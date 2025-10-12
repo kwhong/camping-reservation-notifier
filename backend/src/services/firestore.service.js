@@ -112,6 +112,89 @@ export class FirestoreService {
     }
   }
 
+  /**
+   * Save availability with upsert logic (prevents duplicates)
+   * Uses composite document ID: campingName_region_area_date
+   */
+  async saveAvailabilityV2(availabilityData) {
+    try {
+      const { campingName, region, area, date } = availabilityData;
+
+      // Generate deterministic document ID
+      const docId = `${campingName}_${region}_${area}_${date}`
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9가-힣_-]/g, '');
+
+      // Upsert with merge
+      await this.getDb()
+        .collection(COLLECTIONS.AVAILABILITY)
+        .doc(docId)
+        .set(
+          {
+            ...availabilityData,
+            scrapedAt: new Date(),
+            updatedAt: new Date()
+          },
+          { merge: true }
+        );
+
+      logger.debug(`Availability upserted: ${docId}`);
+    } catch (error) {
+      logger.error('Error saving availability (v2):', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch save availability data (more efficient for multiple documents)
+   */
+  async batchSaveAvailability(availabilityDataArray) {
+    try {
+      const batch = this.getDb().batch();
+      let count = 0;
+
+      for (const availabilityData of availabilityDataArray) {
+        const { campingName, region, area, date } = availabilityData;
+
+        const docId = `${campingName}_${region}_${area}_${date}`
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9가-힣_-]/g, '');
+
+        const docRef = this.getDb().collection(COLLECTIONS.AVAILABILITY).doc(docId);
+
+        batch.set(
+          docRef,
+          {
+            ...availabilityData,
+            scrapedAt: new Date(),
+            updatedAt: new Date()
+          },
+          { merge: true }
+        );
+
+        count++;
+
+        // Firestore batch limit is 500 operations
+        if (count >= 500) {
+          await batch.commit();
+          logger.info(`Batch committed: ${count} documents`);
+          count = 0;
+        }
+      }
+
+      // Commit remaining documents
+      if (count > 0) {
+        await batch.commit();
+        logger.info(`Final batch committed: ${count} documents`);
+      }
+
+      logger.info(`Total availability data saved: ${availabilityDataArray.length}`);
+    } catch (error) {
+      logger.error('Error batch saving availability:', error);
+      throw error;
+    }
+  }
+
   async getAvailability(filters = {}) {
     try {
       let query = this.getDb().collection(COLLECTIONS.AVAILABILITY);

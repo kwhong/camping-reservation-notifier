@@ -44,6 +44,9 @@ export class ScraperService {
         logger.info(`No active settings, using default months: ${months.join(', ')}`);
       }
 
+      // Collect all data first
+      const allAvailabilityData = [];
+
       for (const month of months) {
         logger.info(`Scraping month: ${month}`);
         const url = `${BASE_URL}?${BASE_PARAMS}&selectMonth=${month}`;
@@ -55,16 +58,23 @@ export class ScraperService {
         const availabilityData = await this.parsePage(page, month);
         totalItemsScraped += availabilityData.length;
 
-        // Save to Firestore
-        for (const item of availabilityData) {
-          await firestoreService.saveAvailability({
-            ...item,
-            campingName: CAMPING_INFO.name,
-            region: CAMPING_INFO.region
-          });
-        }
+        // Add camping info and collect
+        const dataWithInfo = availabilityData.map(item => ({
+          ...item,
+          campingName: CAMPING_INFO.name,
+          region: CAMPING_INFO.region
+        }));
+
+        allAvailabilityData.push(...dataWithInfo);
 
         logger.info(`Scraped ${availabilityData.length} items for ${month}`);
+      }
+
+      // Batch save all data at once (more efficient)
+      if (allAvailabilityData.length > 0) {
+        logger.info(`Saving ${allAvailabilityData.length} items to Firestore...`);
+        await firestoreService.batchSaveAvailability(allAvailabilityData);
+        logger.info('✅ All data saved successfully');
       }
 
       await browser.close();
