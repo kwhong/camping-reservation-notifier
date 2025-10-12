@@ -282,6 +282,9 @@ npm run build
 
 ### 개발자 문서
 - **[시스템 아키텍처](docs/SYSTEM_ARCHITECTURE.md)** ⭐ - **머메이드 다이어그램으로 보는 전체 시스템 구조**
+- **[Architecture Decision Records (ADR)](docs/architecture/)** ⭐ - **주요 아키텍처 결정 사항 (11개 문서)**
+  - 백엔드: Express.js, ES Modules, Firebase, Node.js 18+, Cron 스케줄러, 에러 처리, Playwright, 이메일 알림
+  - 프론트엔드: React + Vite, Ant Design
 - **[OpenAPI 명세](openapi.yaml)** - REST API 문서 (Swagger/Postman)
 - **[JSDoc API 문서](backend/docs/API.md)** - 백엔드 함수/클래스 상세 문서
 - **[API 클라이언트 생성](docs/API_CLIENT_GENERATION.md)** - TypeScript 클라이언트 생성 방법
